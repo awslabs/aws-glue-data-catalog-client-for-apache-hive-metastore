@@ -1,6 +1,9 @@
-## AWS Glue Catalog Client For Apache Hive Metastore
+## AWS Glue Data Catalog Client for Apache Hive Metastore
+The AWS Glue Data Catalog is a fully managed, Apache Hive Metastore compatible, metadata repository. Customers can use the Data Catalog as a central repository to store structural and operational metadata for their data.
 
-The Glue Data Catalog is a metastore which provides a unified metadata repository across a variety of data sources and data formats, integrating with Amazon EMR as well as Amazon RDS, Amazon Redshift, Redshift Spectrum, Athena, and any application compatible with the Apache Hive metastore. Customers want to use a single managed metadata store across all their analytics workloads. Today they can use Glue Data Catalog only with Athena, EMR, and Redshfit Spectrum but not with third party solutions like Databricks, Qubole, or their own hadoop environments running on AWS. Making this connector available, will allow customers and partners to build integrations to the Glue Data Catalog and will thus ease the adoption of Glue Data Catalog for many customers.
+AWS Glue provides out-of-box integration with Amazon EMR that enables customers to use the AWS Glue Data Catalog as a replacement for an external Hive Metastore. To learn more, visit our [documentation](https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-hive-metastore-glue.html).
+
+With this client, customers and partners can now use the AWS Glue Data Catalog with their own Apache Hadoop environments as a replacement for an external Hive Metastore.
 
 ## License
 
