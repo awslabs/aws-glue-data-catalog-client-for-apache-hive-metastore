@@ -5,6 +5,8 @@ AWS Glue provides out-of-box integration with Amazon EMR that enables customers 
 
 This is an open-source implementation of the Apache Hive Metastore client on Amazon EMR clusters that uses the AWS Glue Data Catalog as an external Hive Metastore. It serves as a reference implementation for building a Hive Metastore-compatible client that connects to the AWS Glue Data Catalog. It may be ported to other Hive Metastore-compatible platforms such as other Hadoop and Apache Spark distributions.
 
+**Note**: in order for this client implementation to be used with Apache Hive, a patch included in this [JIRA](https://issues.apache.org/jira/browse/HIVE-12679) must be applied to it.  All versions of Apache Hive running on EMR that support the AWS Glue Data Catalog as the metastore  already include this patch.
+
 ## License
 
 This library is licensed under the Apache 2.0 License. 
