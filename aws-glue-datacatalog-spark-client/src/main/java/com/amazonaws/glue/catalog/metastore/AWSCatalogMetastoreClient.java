@@ -851,9 +851,6 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
       // "$functionName does not exist" for
       // NoSuchObjectExceptions to conform to how spark handle exception
       // matching for doesFunctionExist operation.
-      // details in https://sim.amazon.com/issues/EMR-Dp-1929
-      // TODO: submit PR for spark-sql to properly match NoSuchObjectException &
-      // remove this catch block
       throw new NoSuchObjectException(functionName + " does not exist");
     } catch (AmazonServiceException e) {
       logger.error(e);
@@ -1055,7 +1052,6 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
 
   @Override
   public void setHiveAddedJars(String s) {
-      // TODO sim https://sim.amazon.com/issues/EMR-Dp-1469
       throw new UnsupportedOperationException("setHiveAddedJars is not supported");
   }
 
