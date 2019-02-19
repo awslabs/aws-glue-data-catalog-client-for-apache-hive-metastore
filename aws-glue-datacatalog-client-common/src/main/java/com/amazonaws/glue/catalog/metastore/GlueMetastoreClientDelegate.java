@@ -509,7 +509,6 @@ public class GlueMetastoreClientDelegate {
       throw new UnsupportedOperationException("Cascade for alter_table is not supported");
     }
 
-    // TODO table rename support https://sim.amazon.com/issues/EMR-Dp-2123
     if (!oldTableName.equals(newTable.getTableName())) {
       throw new UnsupportedOperationException("Table rename is not supported");
     }
