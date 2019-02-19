@@ -101,7 +101,6 @@ public final class MetastoreClientUtils {
    * Additional logic: check Table#getTableType to see if isExternalTable
    */
   public static boolean isExternalTable(org.apache.hadoop.hive.metastore.api.Table table) {
-    // https://sim.amazon.com/issues/AWSCatalog-1278
     if (table == null) {
       return false;
     }
