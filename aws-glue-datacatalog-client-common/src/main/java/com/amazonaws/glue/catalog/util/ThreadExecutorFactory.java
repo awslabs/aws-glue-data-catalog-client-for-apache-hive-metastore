@@ -29,7 +29,8 @@ public class ThreadExecutorFactory {
               if (customExecutorClass != null && !customExecutorClass.isEmpty()){
                   delegateThreadPool = (ExecutorService) getInstanceByReflection(
                           customExecutorClass, NUM_EXECUTOR_THREADS, threadFactory);
-              } else {
+              }
+              if ( delegateThreadPool == null ) {
                   delegateThreadPool = Executors.newFixedThreadPool(NUM_EXECUTOR_THREADS, threadFactory);
               }
           }
