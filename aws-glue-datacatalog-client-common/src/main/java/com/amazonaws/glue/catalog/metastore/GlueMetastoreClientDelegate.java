@@ -4,10 +4,7 @@ import com.amazonaws.AmazonServiceException;
 import com.amazonaws.glue.catalog.converters.CatalogToHiveConverter;
 import com.amazonaws.glue.catalog.converters.GlueInputConverter;
 import com.amazonaws.glue.catalog.converters.HiveToCatalogConverter;
-import com.amazonaws.glue.catalog.util.BatchCreatePartitionsHelper;
-import com.amazonaws.glue.catalog.util.ExpressionHelper;
-import com.amazonaws.glue.catalog.util.MetastoreClientUtils;
-import com.amazonaws.glue.catalog.util.PartitionKey;
+import com.amazonaws.glue.catalog.util.*;
 import com.amazonaws.glue.shims.AwsGlueHiveShims;
 import com.amazonaws.glue.shims.ShimsLoader;
 import com.amazonaws.services.glue.AWSGlue;
@@ -157,15 +154,6 @@ public class GlueMetastoreClientDelegate {
    */
   public static final int GET_PARTITIONS_MAX_SIZE = 1000;
 
-  private static final int NUM_EXECUTOR_THREADS = 5;
-  static final String GLUE_METASTORE_DELEGATE_THREADPOOL_NAME_FORMAT = "glue-metastore-delegate-%d";
-  private static final ExecutorService GLUE_METASTORE_DELEGATE_THREAD_POOL = Executors.newFixedThreadPool(
-    NUM_EXECUTOR_THREADS,
-    new ThreadFactoryBuilder()
-      .setNameFormat(GLUE_METASTORE_DELEGATE_THREADPOOL_NAME_FORMAT)
-      .setDaemon(true).build()
-  );
-
   /**
    * Maximum number of Glue Segments. A segment defines a non-overlapping region of a table's partitions,
    * allowing multiple requests to be executed in parallel.
@@ -179,6 +167,7 @@ public class GlueMetastoreClientDelegate {
    */
   public static final int MAX_NUM_PARTITION_SEGMENTS = 10;
 
+  private final ExecutorService executorService;
   private final AWSGlue glueClient;
   private final HiveConf conf;
   private final Warehouse wh;
@@ -200,6 +189,7 @@ public class GlueMetastoreClientDelegate {
     this.conf = conf;
     this.glueClient = glueClient;
     this.wh = wh;
+    this.executorService = ThreadExecutorFactory.getGlueMetastoreDelegateThreadPool(conf);
     // TODO - May be validate catalogId confirms to AWS AccountId too.
     catalogId = MetastoreClientUtils.getCatalogId(conf);
   }
@@ -740,7 +730,7 @@ public class GlueMetastoreClientDelegate {
       int j = Math.min(i + BATCH_CREATE_PARTITIONS_MAX_REQUEST_SIZE, catalogPartitions.size());
       final List<Partition> partitionsOnePage = catalogPartitions.subList(i, j);
 
-      batchCreatePartitionsFutures.add(GLUE_METASTORE_DELEGATE_THREAD_POOL.submit(new Callable<BatchCreatePartitionsHelper>() {
+      batchCreatePartitionsFutures.add(this.executorService.submit(new Callable<BatchCreatePartitionsHelper>() {
         @Override
         public BatchCreatePartitionsHelper call() throws Exception {
           return new BatchCreatePartitionsHelper(glueClient, dbName, tableName, catalogId, partitionsOnePage, ifNotExists)
@@ -868,7 +858,7 @@ public class GlueMetastoreClientDelegate {
           .withTableName(tableName)
           .withPartitionsToGet(batch)
           .withCatalogId(catalogId);
-      batchGetPartitionFutures.add(GLUE_METASTORE_DELEGATE_THREAD_POOL.submit(new Callable<BatchGetPartitionResult>() {
+      batchGetPartitionFutures.add(this.executorService.submit(new Callable<BatchGetPartitionResult>() {
         @Override
         public BatchGetPartitionResult call() throws Exception {
           return glueClient.batchGetPartition(request);
@@ -974,7 +964,7 @@ public class GlueMetastoreClientDelegate {
     // We could convert this into a parallelStream after upgrading to JDK 8 compiler base.
     List<Future<List<Partition>>> futures = Lists.newArrayList();
     for (final Segment segment : segments) {
-      futures.add(GLUE_METASTORE_DELEGATE_THREAD_POOL.submit(new Callable<List<Partition>>() {
+      futures.add(this.executorService.submit(new Callable<List<Partition>>() {
         @Override
         public List<Partition> call() throws Exception {
           return getCatalogPartitions(databaseName, tableName, expression, max, segment);

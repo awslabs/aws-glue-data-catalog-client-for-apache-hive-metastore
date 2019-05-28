@@ -3,6 +3,7 @@ package com.amazonaws.glue.catalog.metastore;
 import com.amazonaws.glue.catalog.converters.CatalogToHiveConverter;
 import com.amazonaws.glue.catalog.converters.GlueInputConverter;
 import com.amazonaws.glue.catalog.util.TestObjects;
+import com.amazonaws.glue.catalog.util.ThreadExecutorFactory;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.AlreadyExistsException;
 import com.amazonaws.services.glue.model.BatchCreatePartitionRequest;
@@ -1521,9 +1522,9 @@ public class GlueMetastoreClientDelegateTest {
 
   private void assertDaemonThreadPools() {
     String threadNameCreatePrefix =
-            GlueMetastoreClientDelegate.GLUE_METASTORE_DELEGATE_THREADPOOL_NAME_FORMAT.substring(
+            ThreadExecutorFactory.GLUE_METASTORE_DELEGATE_THREADPOOL_NAME_FORMAT.substring(
                     0,
-                    GlueMetastoreClientDelegate.GLUE_METASTORE_DELEGATE_THREADPOOL_NAME_FORMAT.indexOf('%'));
+                    ThreadExecutorFactory.GLUE_METASTORE_DELEGATE_THREADPOOL_NAME_FORMAT.indexOf('%'));
     for (Thread thread : Thread.getAllStackTraces().keySet()) {
       String threadName = thread.getName();
       if (threadName != null && threadName.startsWith(threadNameCreatePrefix)) {
