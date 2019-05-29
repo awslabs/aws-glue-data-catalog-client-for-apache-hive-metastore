@@ -4,7 +4,11 @@ import com.amazonaws.AmazonServiceException;
 import com.amazonaws.glue.catalog.converters.CatalogToHiveConverter;
 import com.amazonaws.glue.catalog.converters.GlueInputConverter;
 import com.amazonaws.glue.catalog.converters.HiveToCatalogConverter;
-import com.amazonaws.glue.catalog.util.*;
+import com.amazonaws.glue.catalog.util.BatchCreatePartitionsHelper;
+import com.amazonaws.glue.catalog.util.ExpressionHelper;
+import com.amazonaws.glue.catalog.util.MetastoreClientUtils;
+import com.amazonaws.glue.catalog.util.PartitionKey;
+import com.amazonaws.glue.catalog.util.ThreadExecutorFactory;
 import com.amazonaws.glue.shims.AwsGlueHiveShims;
 import com.amazonaws.glue.shims.ShimsLoader;
 import com.amazonaws.services.glue.AWSGlue;
@@ -52,8 +56,8 @@ import com.amazonaws.services.glue.model.UserDefinedFunctionInput;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.StatsSetupConst;
@@ -117,6 +121,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
 import java.util.regex.Pattern;
 
 import static com.amazonaws.glue.catalog.converters.ConverterUtils.stringToCatalogTable;
@@ -154,6 +159,14 @@ public class GlueMetastoreClientDelegate {
    */
   public static final int GET_PARTITIONS_MAX_SIZE = 1000;
 
+  private static final int NUM_EXECUTOR_THREADS = 5;
+  static final String GLUE_METASTORE_DELEGATE_THREADPOOL_NAME_FORMAT = "glue-metastore-delegate-%d";
+  private static final ThreadFactory threadFactory = new ThreadFactoryBuilder()
+          .setNameFormat(GLUE_METASTORE_DELEGATE_THREADPOOL_NAME_FORMAT)
+          .setDaemon(true).build();
+  private static final ExecutorService GLUE_METASTORE_DELEGATE_THREAD_POOL = Executors.newFixedThreadPool(
+    NUM_EXECUTOR_THREADS, threadFactory);
+
   /**
    * Maximum number of Glue Segments. A segment defines a non-overlapping region of a table's partitions,
    * allowing multiple requests to be executed in parallel.
@@ -189,7 +202,13 @@ public class GlueMetastoreClientDelegate {
     this.conf = conf;
     this.glueClient = glueClient;
     this.wh = wh;
-    this.executorService = ThreadExecutorFactory.getGlueMetastoreDelegateThreadPool(conf);
+    ExecutorService customExecutor = ThreadExecutorFactory.getCustomThreadPool(conf, NUM_EXECUTOR_THREADS, threadFactory);
+    if (customExecutor != null ) {
+      this.executorService = customExecutor;
+    } else {
+      this.executorService = GLUE_METASTORE_DELEGATE_THREAD_POOL;
+    }
+
     // TODO - May be validate catalogId confirms to AWS AccountId too.
     catalogId = MetastoreClientUtils.getCatalogId(conf);
   }
