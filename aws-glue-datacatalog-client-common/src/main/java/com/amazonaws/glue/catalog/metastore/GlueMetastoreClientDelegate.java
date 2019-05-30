@@ -108,6 +108,8 @@ import org.apache.log4j.Logger;
 import org.apache.thrift.TException;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -186,29 +188,23 @@ public class GlueMetastoreClientDelegate {
   private ExecutorService getExecutorService(HiveConf conf) throws MetaException {
 
     String customFactoryClassName = conf.get(CUSTOM_EXECUTOR_FACTORY_CONF);
-    ExecutorServiceFactory factory = null;
+    ExecutorService executorService = null;
     if (!StringUtils.isEmpty(customFactoryClassName)) {
       try {
-        factory = (ExecutorServiceFactory) Class.forName(customFactoryClassName).newInstance();
-      } catch (ClassNotFoundException e) {
-        String msg = "Could not load class defined in conf " + CUSTOM_EXECUTOR_FACTORY_CONF;
-        logger.warn(msg);
-        throw new MetaException(msg + e);
-      } catch (InstantiationException e) {
-        String msg = "Could not instantiate class defined in conf " + CUSTOM_EXECUTOR_FACTORY_CONF;
-        logger.warn(msg);
-        throw new MetaException(msg + e);
-      } catch (IllegalAccessException e) {
-        String msg = "Could not instantiate class defined in conf " + CUSTOM_EXECUTOR_FACTORY_CONF;
-        logger.warn(msg);
-        throw new MetaException(msg + e);
+        Class<?> clazz = Class.forName(customFactoryClassName);
+        Object factory = clazz.newInstance();
+        Method method = clazz.getDeclaredMethod("getExecutorService", HiveConf.class);
+        executorService = (ExecutorService)method.invoke(factory, conf);
+      } catch(Exception e) {
+        logger.warn(e.getMessage());
+        throw new MetaException(e.getMessage() + e);
       }
     } else {
         // If custom factory conf is not defined or if there is an error in loading it via reflection
-      factory = new ThreadPoolExecutorFactory();
+      executorService = new ThreadPoolExecutorFactory().getExecutorService(conf);
     }
 
-    return factory.getExecutorService(conf);
+    return executorService;
   }
 
 
