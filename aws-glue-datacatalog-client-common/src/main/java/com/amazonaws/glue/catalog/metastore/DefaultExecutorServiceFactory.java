@@ -6,7 +6,7 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class ThreadPoolExecutorFactory implements ExecutorServiceFactory {
+public class DefaultExecutorServiceFactory implements ExecutorServiceFactory {
     private static final int NUM_EXECUTOR_THREADS = 5;
 
     private static final ExecutorService GLUE_METASTORE_DELEGATE_THREAD_POOL = Executors.newFixedThreadPool(

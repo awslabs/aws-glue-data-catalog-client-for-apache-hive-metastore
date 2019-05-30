@@ -104,12 +104,11 @@ import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.hadoop.hive.metastore.api.UnknownTableException;
 import org.apache.hadoop.hive.metastore.api.hive_metastoreConstants;
 import org.apache.hadoop.hive.metastore.partition.spec.PartitionSpecProxy;
+import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.log4j.Logger;
 import org.apache.thrift.TException;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -185,29 +184,15 @@ public class GlueMetastoreClientDelegate {
   public static final String CATALOG_ID_CONF = "hive.metastore.glue.catalogid";
   public static final String NUM_PARTITION_SEGMENTS_CONF = "aws.glue.partition.num.segments";
 
-  private ExecutorService getExecutorService(HiveConf conf) throws MetaException {
-
-    String customFactoryClassName = conf.get(CUSTOM_EXECUTOR_FACTORY_CONF);
-    ExecutorService executorService = null;
-    if (!StringUtils.isEmpty(customFactoryClassName)) {
-      try {
-        Class<?> clazz = Class.forName(customFactoryClassName);
-        Object factory = clazz.newInstance();
-        Method method = clazz.getDeclaredMethod("getExecutorService", HiveConf.class);
-        executorService = (ExecutorService)method.invoke(factory, conf);
-      } catch(Exception e) {
-        logger.warn(e.getMessage());
-        throw new MetaException(e.getMessage() + e);
-      }
-    } else {
-        // If custom factory conf is not defined or if there is an error in loading it via reflection
-      executorService = new ThreadPoolExecutorFactory().getExecutorService(conf);
-    }
-
-    return executorService;
+  private ExecutorService getExecutorService(HiveConf conf) {
+    Class<? extends ExecutorServiceFactory> executorFactoryClass = conf
+            .getClass(CUSTOM_EXECUTOR_FACTORY_CONF,
+                    DefaultExecutorServiceFactory.class).asSubclass(
+                    ExecutorServiceFactory.class);
+    ExecutorServiceFactory factory = ReflectionUtils.newInstance(
+            executorFactoryClass, conf);
+    return factory.getExecutorService(conf);
   }
-
-
 
   public GlueMetastoreClientDelegate(HiveConf conf, AWSGlue glueClient, Warehouse wh) throws MetaException {
     checkNotNull(conf, "Hive Config cannot be null");
