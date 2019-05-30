@@ -8,7 +8,6 @@ import com.amazonaws.glue.catalog.util.BatchCreatePartitionsHelper;
 import com.amazonaws.glue.catalog.util.ExpressionHelper;
 import com.amazonaws.glue.catalog.util.MetastoreClientUtils;
 import com.amazonaws.glue.catalog.util.PartitionKey;
-import com.amazonaws.glue.catalog.util.ThreadExecutorFactory;
 import com.amazonaws.glue.shims.AwsGlueHiveShims;
 import com.amazonaws.glue.shims.ShimsLoader;
 import com.amazonaws.services.glue.AWSGlue;
@@ -57,7 +56,6 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.StatsSetupConst;
@@ -110,8 +108,6 @@ import org.apache.log4j.Logger;
 import org.apache.thrift.TException;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -121,9 +117,7 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ThreadFactory;
 import java.util.regex.Pattern;
 
 import static com.amazonaws.glue.catalog.converters.ConverterUtils.stringToCatalogTable;
@@ -164,7 +158,7 @@ public class GlueMetastoreClientDelegate {
   public static final String CUSTOM_EXECUTOR_FACTORY_CONF = "hive.metastore.executorservice.factory.class";
 
   static final String GLUE_METASTORE_DELEGATE_THREADPOOL_NAME_FORMAT = "glue-metastore-delegate-%d";
-  
+
   /**
    * Maximum number of Glue Segments. A segment defines a non-overlapping region of a table's partitions,
    * allowing multiple requests to be executed in parallel.
