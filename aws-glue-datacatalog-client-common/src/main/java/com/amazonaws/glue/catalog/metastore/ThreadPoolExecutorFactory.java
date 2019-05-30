@@ -5,7 +5,7 @@ import org.apache.hadoop.hive.conf.HiveConf;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-i
+
 public class ThreadPoolExecutorFactory implements ExecutorServiceFactory {
     private static final int NUM_EXECUTOR_THREADS = 5;
 
