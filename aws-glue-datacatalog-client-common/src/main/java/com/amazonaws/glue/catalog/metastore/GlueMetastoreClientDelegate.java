@@ -110,6 +110,8 @@ import org.apache.log4j.Logger;
 import org.apache.thrift.TException;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -159,14 +161,10 @@ public class GlueMetastoreClientDelegate {
    */
   public static final int GET_PARTITIONS_MAX_SIZE = 1000;
 
-  private static final int NUM_EXECUTOR_THREADS = 5;
-  static final String GLUE_METASTORE_DELEGATE_THREADPOOL_NAME_FORMAT = "glue-metastore-delegate-%d";
-  private static final ThreadFactory threadFactory = new ThreadFactoryBuilder()
-          .setNameFormat(GLUE_METASTORE_DELEGATE_THREADPOOL_NAME_FORMAT)
-          .setDaemon(true).build();
-  private static final ExecutorService GLUE_METASTORE_DELEGATE_THREAD_POOL = Executors.newFixedThreadPool(
-    NUM_EXECUTOR_THREADS, threadFactory);
+  public static final String CUSTOM_EXECUTOR_FACTORY_CONF = "hive.metastore.executorservice.factory.class";
 
+  static final String GLUE_METASTORE_DELEGATE_THREADPOOL_NAME_FORMAT = "glue-metastore-delegate-%d";
+  
   /**
    * Maximum number of Glue Segments. A segment defines a non-overlapping region of a table's partitions,
    * allowing multiple requests to be executed in parallel.
@@ -191,6 +189,36 @@ public class GlueMetastoreClientDelegate {
   public static final String CATALOG_ID_CONF = "hive.metastore.glue.catalogid";
   public static final String NUM_PARTITION_SEGMENTS_CONF = "aws.glue.partition.num.segments";
 
+  private ExecutorService getExecutorService(HiveConf conf) throws MetaException {
+
+    String customFactoryClassName = conf.get(CUSTOM_EXECUTOR_FACTORY_CONF);
+    ExecutorServiceFactory factory = null;
+    if (!StringUtils.isEmpty(customFactoryClassName)) {
+      try {
+        factory = (ExecutorServiceFactory) Class.forName(customFactoryClassName).newInstance();
+      } catch (ClassNotFoundException e) {
+        String msg = "Could not load class defined in conf " + CUSTOM_EXECUTOR_FACTORY_CONF;
+        logger.warn(msg);
+        throw new MetaException(msg + e);
+      } catch (InstantiationException e) {
+        String msg = "Could not instantiate class defined in conf " + CUSTOM_EXECUTOR_FACTORY_CONF;
+        logger.warn(msg);
+        throw new MetaException(msg + e);
+      } catch (IllegalAccessException e) {
+        String msg = "Could not instantiate class defined in conf " + CUSTOM_EXECUTOR_FACTORY_CONF;
+        logger.warn(msg);
+        throw new MetaException(msg + e);
+      }
+    } else {
+        // If custom factory conf is not defined or if there is an error in loading it via reflection
+      factory = new ThreadPoolExecutorFactory();
+    }
+
+    return factory.getExecutorService(conf);
+  }
+
+
+
   public GlueMetastoreClientDelegate(HiveConf conf, AWSGlue glueClient, Warehouse wh) throws MetaException {
     checkNotNull(conf, "Hive Config cannot be null");
     checkNotNull(glueClient, "glueClient cannot be null");
@@ -202,12 +230,7 @@ public class GlueMetastoreClientDelegate {
     this.conf = conf;
     this.glueClient = glueClient;
     this.wh = wh;
-    ExecutorService customExecutor = ThreadExecutorFactory.getCustomThreadPool(conf, NUM_EXECUTOR_THREADS, threadFactory);
-    if (customExecutor != null ) {
-      this.executorService = customExecutor;
-    } else {
-      this.executorService = GLUE_METASTORE_DELEGATE_THREAD_POOL;
-    }
+    this.executorService = getExecutorService(conf);
 
     // TODO - May be validate catalogId confirms to AWS AccountId too.
     catalogId = MetastoreClientUtils.getCatalogId(conf);
