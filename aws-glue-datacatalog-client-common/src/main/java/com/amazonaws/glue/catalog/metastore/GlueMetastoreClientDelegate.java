@@ -184,8 +184,8 @@ public class GlueMetastoreClientDelegate {
   public static final String CATALOG_ID_CONF = "hive.metastore.glue.catalogid";
   public static final String NUM_PARTITION_SEGMENTS_CONF = "aws.glue.partition.num.segments";
 
-  private ExecutorService getExecutorService(HiveConf conf) {
-    Class<? extends ExecutorServiceFactory> executorFactoryClass = conf
+  protected ExecutorService getExecutorService() {
+    Class<? extends ExecutorServiceFactory> executorFactoryClass = this.conf
             .getClass(CUSTOM_EXECUTOR_FACTORY_CONF,
                     DefaultExecutorServiceFactory.class).asSubclass(
                     ExecutorServiceFactory.class);
@@ -205,7 +205,7 @@ public class GlueMetastoreClientDelegate {
     this.conf = conf;
     this.glueClient = glueClient;
     this.wh = wh;
-    this.executorService = getExecutorService(conf);
+    this.executorService = getExecutorService();
 
     // TODO - May be validate catalogId confirms to AWS AccountId too.
     catalogId = MetastoreClientUtils.getCatalogId(conf);
