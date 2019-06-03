@@ -34,7 +34,7 @@ You are now ready to build the Hive client.
 
 ## Building the Spark Client
 
-As Spark uses a fork of Hive based off the 1.2.1 branch, in order to build the Spark client, you need Hive 1.2 built with this [patch](https://issues.apache.org/jira/secure/attachment/12958418/HIVE-12679.branch-1.2.patch).  Unlike Hive 2.x, Hive 1.x must be built with a Maven profile set to either "hadoop-1" or "hadoop-2". 
+As Spark uses a fork of Hive based off the 1.2.1 branch, in order to build the Spark client, you need Hive 1.2 built with this [patch](https://issues.apache.org/jira/secure/attachment/12958417/HIVE-12679.branch-1.2.patch).  Unlike Hive 2.x, Hive 1.x must be built with a Maven profile set to either "hadoop-1" or "hadoop-2".
 
 	cd <your local Hive repo>
 	git checkout branch-1.2
