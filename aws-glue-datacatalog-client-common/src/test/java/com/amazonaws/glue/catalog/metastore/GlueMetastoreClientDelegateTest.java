@@ -3,6 +3,8 @@ package com.amazonaws.glue.catalog.metastore;
 import com.amazonaws.glue.catalog.converters.CatalogToHiveConverter;
 import com.amazonaws.glue.catalog.converters.GlueInputConverter;
 import com.amazonaws.glue.catalog.util.TestObjects;
+import com.amazonaws.glue.catalog.util.TestExecutorService;
+import com.amazonaws.glue.catalog.util.TestExecutorServiceFactory;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.AlreadyExistsException;
 import com.amazonaws.services.glue.model.BatchCreatePartitionRequest;
@@ -157,29 +159,16 @@ public class GlueMetastoreClientDelegateTest {
 
   // ===================== Thread Executor =====================
 
-  private class TestExecutorService extends ScheduledThreadPoolExecutor {
-
-    public TestExecutorService(int corePoolSize, ThreadFactory factory) {
-      super(corePoolSize, factory);
-    }
-  }
-
-  private class TestExecutorFactory implements ExecutorServiceFactory {
-    private final ExecutorService execService = new TestExecutorService(1, new ThreadFactoryBuilder().build());
-
-    @Override
-    public ExecutorService getExecutorService(HiveConf conf) {
-      return execService;
-    }
-  }
-
   @Test
   public void testExecutorService() throws Exception {
     Object defaultExecutorService = new DefaultExecutorServiceFactory().getExecutorService(conf);
     assertEquals("Default executor service should be used", metastoreClientDelegate.getExecutorService(), defaultExecutorService);
-    conf.set(GlueMetastoreClientDelegate.CUSTOM_EXECUTOR_FACTORY_CONF, TestExecutorFactory.class.getName());
-    GlueMetastoreClientDelegate customDelegate = new GlueMetastoreClientDelegate(conf, glueClient, wh);
-    Object customExecutorService = new TestExecutorFactory().getExecutorService(conf);
+    HiveConf customConf = new HiveConf();
+    customConf.set(GlueMetastoreClientDelegate.CATALOG_ID_CONF, CATALOG_ID);
+    customConf.setClass(GlueMetastoreClientDelegate.CUSTOM_EXECUTOR_FACTORY_CONF, TestExecutorServiceFactory.class, ExecutorServiceFactory.class);
+    GlueMetastoreClientDelegate customDelegate = new GlueMetastoreClientDelegate(customConf, mock(AWSGlue.class), mock(Warehouse.class));
+    Object customExecutorService = new TestExecutorServiceFactory().getExecutorService(customConf);
+
     assertEquals("Custom executor service should be used", customDelegate.getExecutorService(), customExecutorService);
   }
 
