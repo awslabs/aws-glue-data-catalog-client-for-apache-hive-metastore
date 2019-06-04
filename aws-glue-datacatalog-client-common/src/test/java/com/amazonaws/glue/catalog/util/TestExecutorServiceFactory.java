@@ -13,8 +13,6 @@ public class TestExecutorServiceFactory implements ExecutorServiceFactory {
     public ExecutorService getExecutorService(HiveConf conf) {
         return execService;
     }
-
-
 }
 
 
