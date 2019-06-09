@@ -151,10 +151,10 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
     glueMetastoreClientDelegate = new GlueMetastoreClientDelegate(this.conf, glueClient, wh);
 
     snapshotActiveConf();
+    catalogId = MetastoreClientUtils.getCatalogId(conf);
     if (!doesDefaultDBExist()) {
       createDefaultDatabase();
     }
-    catalogId = MetastoreClientUtils.getCatalogId(conf);
   }
 
   /**
