@@ -3,6 +3,7 @@ package com.amazonaws.glue.catalog.metastore;
 import com.amazonaws.glue.catalog.converters.CatalogToHiveConverter;
 import com.amazonaws.glue.catalog.converters.GlueInputConverter;
 import com.amazonaws.glue.catalog.util.TestObjects;
+import com.amazonaws.glue.catalog.util.TestExecutorServiceFactory;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.AlreadyExistsException;
 import com.amazonaws.services.glue.model.BatchCreatePartitionRequest;
@@ -151,6 +152,21 @@ public class GlueMetastoreClientDelegateTest {
     when(wh.getDnsPath(path)).thenReturn(path);
     when(wh.isDir(path)).thenReturn(isDir);
     when(wh.mkdirs(path, true)).thenReturn(mkDir);
+  }
+
+  // ===================== Thread Executor =====================
+
+  @Test
+  public void testExecutorService() throws Exception {
+    Object defaultExecutorService = new DefaultExecutorServiceFactory().getExecutorService(conf);
+    assertEquals("Default executor service should be used", metastoreClientDelegate.getExecutorService(), defaultExecutorService);
+    HiveConf customConf = new HiveConf();
+    customConf.set(GlueMetastoreClientDelegate.CATALOG_ID_CONF, CATALOG_ID);
+    customConf.setClass(GlueMetastoreClientDelegate.CUSTOM_EXECUTOR_FACTORY_CONF, TestExecutorServiceFactory.class, ExecutorServiceFactory.class);
+    GlueMetastoreClientDelegate customDelegate = new GlueMetastoreClientDelegate(customConf, mock(AWSGlue.class), mock(Warehouse.class));
+    Object customExecutorService = new TestExecutorServiceFactory().getExecutorService(customConf);
+
+    assertEquals("Custom executor service should be used", customDelegate.getExecutorService(), customExecutorService);
   }
 
   // ===================== Database =====================
