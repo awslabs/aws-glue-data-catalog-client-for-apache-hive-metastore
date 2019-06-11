@@ -1,0 +1,5 @@
+*/target/
+shims/common/target/
+shims/hive2-shims/target/
+shims/loader/target/
+shims/spark-hive-shims/target/

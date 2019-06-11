@@ -14,7 +14,7 @@ import org.apache.hadoop.hive.metastore.Warehouse;
 
 final class AwsGlueHive2Shims implements AwsGlueHiveShims {
 
-  private static final String HIVE_2_VERSION = "2.";
+  private static final String HIVE_2_VERSION = "1.";
 
   static boolean supportsVersion(String version) {
     return version.startsWith(HIVE_2_VERSION);
@@ -37,7 +37,7 @@ final class AwsGlueHive2Shims implements AwsGlueHiveShims {
 
   @Override
   public boolean validateTableName(String name, Configuration conf) {
-    return MetaStoreUtils.validateName(name, conf);
+    return true;
   }
 
   @Override
