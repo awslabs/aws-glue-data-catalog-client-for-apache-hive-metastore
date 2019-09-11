@@ -47,7 +47,7 @@ final class AwsGlueHive2Shims implements AwsGlueHiveShims {
       Partition newPart,
       Table tbl,
       EnvironmentContext environmentContext) {
-    return MetaStoreUtils.requireCalStats(conf, oldPart, newPart, tbl, environmentContext);
+    return false;
   }
 
   @Override
