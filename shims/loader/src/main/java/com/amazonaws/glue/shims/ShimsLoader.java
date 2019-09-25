@@ -16,6 +16,7 @@ public final class ShimsLoader {
 
   private static AwsGlueHiveShims loadHiveShims() {
     String hiveVersion = HiveVersionInfo.getShortVersion();
+    System.out.println("Loading glue shims for hive version: " + hiveVersion);
     if (AwsGlueSparkHiveShims.supportsVersion(hiveVersion)) {
       try {
         return AwsGlueSparkHiveShims.class.newInstance();

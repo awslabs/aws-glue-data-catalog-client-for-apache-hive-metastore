@@ -14,7 +14,7 @@ import org.apache.hadoop.hive.metastore.Warehouse;
 
 class AwsGlueSparkHiveShims implements AwsGlueHiveShims {
 
-  private static final String SPARK_HIVE_VERSION = "1.2.";
+  private static final String SPARK_HIVE_VERSION = "1.1.";
 
   static boolean supportsVersion(String version) {
     return version.startsWith(SPARK_HIVE_VERSION);
