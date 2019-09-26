@@ -13,6 +13,7 @@ import org.apache.hadoop.hive.metastore.Warehouse;
 import org.apache.hadoop.hive.metastore.api.InvalidObjectException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.log4j.Logger;
 
 import java.util.Map;
 
@@ -21,6 +22,7 @@ import static org.apache.hadoop.hive.metastore.TableType.EXTERNAL_TABLE;
 
 public final class MetastoreClientUtils {
 
+  private static final Logger logger = Logger.getLogger(MetastoreClientUtils.class);
   private static final AwsGlueHiveShims hiveShims = ShimsLoader.getHiveShims();
 
   private MetastoreClientUtils() {
@@ -38,11 +40,15 @@ public final class MetastoreClientUtils {
     checkNotNull(path, "Path cannot be null");
 
     boolean madeDir = false;
-    if (!wh.isDir(path)) {
-      if (!wh.mkdirs(path, true)) {
-        throw new MetaException("Unable to create path: " + path);
+    try {
+      if (!wh.isDir(path)) {
+        if (!wh.mkdirs(path, true)) {
+          throw new MetaException("Unable to create path: " + path);
+        }
+        madeDir = true;
       }
-      madeDir = true;
+    } catch (MetaException e) {
+        logger.warn("Insufficient privilege to create directory: " + e.getMessage()) ;
     }
     return madeDir;
   }
@@ -113,7 +119,7 @@ public final class MetastoreClientUtils {
 
     return table.getTableType() != null && EXTERNAL_TABLE.name().equalsIgnoreCase(table.getTableType());
   }
-  
+
   public static String getCatalogId(Configuration conf) {
     if (StringUtils.isNotEmpty(conf.get(GlueMetastoreClientDelegate.CATALOG_ID_CONF))) {
       return conf.get(GlueMetastoreClientDelegate.CATALOG_ID_CONF);
