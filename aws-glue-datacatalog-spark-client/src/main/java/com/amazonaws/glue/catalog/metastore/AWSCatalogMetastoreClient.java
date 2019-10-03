@@ -1285,60 +1285,12 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
   public void renamePartition(String dbName, String tblName, List<String> partitionValues,
                               org.apache.hadoop.hive.metastore.api.Partition newPartition)
         throws InvalidOperationException, MetaException, TException {
-
-      // Set DDL time to now if not specified
-      setDDLTime(newPartition);
-      org.apache.hadoop.hive.metastore.api.Table tbl;
-      org.apache.hadoop.hive.metastore.api.Partition oldPart;
-
-      try {
-          tbl = getTable(dbName, tblName);
-          oldPart = getPartition(dbName, tblName, partitionValues);
-      } catch(NoSuchObjectException e) {
-          throw new InvalidOperationException(e.getMessage());
-      }
-
-      if(newPartition.getSd() == null || oldPart.getSd() == null ) {
-          throw new InvalidOperationException("Storage descriptor cannot be null");
-      }
-
-      // if an external partition is renamed, the location should not change
-      if (!Strings.isNullOrEmpty(tbl.getTableType()) && tbl.getTableType().equals(TableType.EXTERNAL_TABLE.toString())) {
-          newPartition.getSd().setLocation(oldPart.getSd().getLocation());
-          renamePartitionInCatalog(dbName, tblName, partitionValues, newPartition);
-      } else {
-
-          Path destPath = getDestinationPathForRename(dbName, tbl, newPartition);
-          Path srcPath = new Path(oldPart.getSd().getLocation());
-          FileSystem srcFs = wh.getFs(srcPath);
-          FileSystem destFs = wh.getFs(destPath);
-
-          verifyDestinationLocation(srcFs, destFs, srcPath, destPath, tbl, newPartition);
-          newPartition.getSd().setLocation(destPath.toString());
-
-          renamePartitionInCatalog(dbName, tblName, partitionValues, newPartition);
-          boolean success = true;
-          try{
-              if (srcFs.exists(srcPath)) {
-                  //if destPath's parent path doesn't exist, we should mkdir it
-                  Path destParentPath = destPath.getParent();
-                  if (!wh.mkdirs(destParentPath, true)) {
-                      throw new IOException("Unable to create path " + destParentPath);
-                  }
-                  wh.renameDir(srcPath, destPath, true);
-              }
-          } catch (IOException e) {
-              success = false;
-              throw new InvalidOperationException("Unable to access old location "
-                    + srcPath + " for partition " + tbl.getDbName() + "."
-                    + tbl.getTableName() + " " + partitionValues);
-          } finally {
-              if(!success) {
-                  // revert metastore operation
-                  renamePartitionInCatalog(dbName, tblName, newPartition.getValues(), oldPart);
-              }
-          }
-      }
+	  //OKERA: removed implementation because we don't support renaming partitions.
+	  // If we bring support for this, then bring the original impl back after removing
+	  // the part where for managed tables it renames the s3 folder. Okera semantics do not
+	  // allow for modifying partition structures, or create partition folders.
+	  throw new UnsupportedOperationException("NYI: renamePartition in Okera Glue Catalog is "
+			  + "currently not implemented");
   }
 
   private void verifyDestinationLocation(FileSystem srcFs, FileSystem destFs, Path srcPath, Path destPath, org.apache.hadoop.hive.metastore.api.Table tbl, org.apache.hadoop.hive.metastore.api.Partition newPartition)
@@ -1386,12 +1338,6 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
           partition.putToParameters(hive_metastoreConstants.DDL_TIME, Long.toString(System
                 .currentTimeMillis() / 1000));
       }
-  }
-
-  private void renamePartitionInCatalog(String databaseName, String tableName,
-                                        List<String> partitionValues, org.apache.hadoop.hive.metastore.api.Partition newPartition)
-        throws InvalidOperationException, MetaException, TException {
-    glueMetastoreClientDelegate.renamePartitionInCatalog(databaseName, tableName, partitionValues, newPartition);
   }
 
   @Override
