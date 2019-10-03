@@ -720,7 +720,11 @@ public class GlueMetastoreClientDelegate {
         boolean partDirCreated = false;
         if (location != null) {
           partition.getSd().setLocation(location.toString());
-          partDirCreated = makeDirs(wh, location);
+          // OKERA: we do not create partition dirs or even check for their presence in
+          // metadata calls in the interest of metadata operation performance. we also do not
+          // delete them, and this collaterally satisfies that constraint for add_partition
+          // calls.
+          // partDirCreated = makeDirs(wh, location);
         }
         Partition catalogPartition = HiveToCatalogConverter.convertPartition(partition);
         catalogPartitions.add(catalogPartition);
