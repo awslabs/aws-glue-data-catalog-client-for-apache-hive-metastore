@@ -509,7 +509,7 @@ public class GlueMetastoreClientDelegate {
       throw new UnsupportedOperationException("Cascade for alter_table is not supported");
     }
 
-    if (!oldTableName.equals(newTable.getTableName())) {
+    if (!oldTableName.equalsIgnoreCase(newTable.getTableName())) {
       throw new UnsupportedOperationException("Table rename is not supported");
     }
 
@@ -521,9 +521,9 @@ public class GlueMetastoreClientDelegate {
     // If table properties has EXTERNAL set, update table type accordinly
     // mimics Hive's ObjectStore#convertToMTable, added in HIVE-1329
     boolean isExternal = Boolean.parseBoolean(newTable.getParameters().get("EXTERNAL"));
-    if (MANAGED_TABLE.toString().equals(newTable.getTableType()) && isExternal) {
+    if (MANAGED_TABLE.toString().equalsIgnoreCase(newTable.getTableType()) && isExternal) {
       newTable.setTableType(EXTERNAL_TABLE.toString());
-    } else if (EXTERNAL_TABLE.toString().equals(newTable.getTableType()) && !isExternal) {
+    } else if (EXTERNAL_TABLE.toString().equalsIgnoreCase(newTable.getTableType()) && !isExternal) {
       newTable.setTableType(MANAGED_TABLE.toString());
     }
 
@@ -633,7 +633,7 @@ public class GlueMetastoreClientDelegate {
     }
     validateTableObject(tbl, conf);
 
-    if (TableType.VIRTUAL_VIEW.toString().equals(tbl.getTableType())) {
+    if (TableType.VIRTUAL_VIEW.toString().equalsIgnoreCase(tbl.getTableType())) {
       // we don't need to create directory for virtual views
       return false;
     }
