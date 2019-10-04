@@ -529,9 +529,24 @@ public class GlueMetastoreClientDelegate {
     }
 
     if (hiveShims.requireCalStats(conf, null, null, newTable, environmentContext) && newTable.getPartitionKeys().isEmpty() && !statsSet(newTable)) {
-      //update table stats for non-partition Table
-      org.apache.hadoop.hive.metastore.api.Database db = getDatabase(newTable.getDbName());
-      hiveShims.updateTableStatsFast(db, newTable, wh, false, true, environmentContext);
+      //
+      // Okera modification: this computes the stats from the table's physical
+      // location. Don't do this in some cases:
+      //   1. Table is not accessible by this cluster (a cluster local table).
+      //   2. Table is partitioned
+      //   3. Stats explicitly provided
+      //
+      if (newTable.getSd().getLocation() != null && !isClusterLocalFileSystem(newTable.getSd().getLocation()) )  {
+        Path path = new Path(newTable.getSd().getLocation());
+        try  {
+          //update table stats for non-partition Table
+          path.getFileSystem(conf).exists(path);
+        } catch (IOException e)  {
+          logger.warn("Cannot access new partition path, skipping stats update: " + path.toString(), e);
+        }
+        org.apache.hadoop.hive.metastore.api.Database db = getDatabase(newTable.getDbName());
+        hiveShims.updateTableStatsFast(db, newTable, wh, false, true, environmentContext);
+      }
     }
 
     try {
@@ -552,12 +567,26 @@ public class GlueMetastoreClientDelegate {
    * Returns true if stats have been set as metadata in t
    */
   private static boolean statsSet(org.apache.hadoop.hive.metastore.api.Table t) {
-	  List<String> statsKeys = Arrays.asList(
-		        StatsSetupConst.NUM_FILES,
-		        StatsSetupConst.RAW_DATA_SIZE,
-		        StatsSetupConst.ROW_COUNT,
-		        StatsSetupConst.TOTAL_SIZE);
-		    return t.getParameters().keySet().containsAll(statsKeys);
+    List<String> statsKeys = Arrays.asList(
+            StatsSetupConst.NUM_FILES,
+            StatsSetupConst.RAW_DATA_SIZE,
+            StatsSetupConst.ROW_COUNT,
+            StatsSetupConst.TOTAL_SIZE);
+        return t.getParameters().keySet().containsAll(statsKeys);
+  }
+
+  /**
+   * Returns <code>true</code> in case the given path (as URI) is for
+   * a file system that is configured to be "cluster local", that is,
+   * ignored by us.
+   *
+   * @param uri The path in form of a URI.
+   * @return <code>true</code> if local path, <code>false</code> otherwise.
+   */
+  public static boolean isClusterLocalFileSystem(String uri) {
+    // TODO: when we do support HDFS again, this needs to be a configuration.
+    // TODO: take a dependency on cerebro-common and use FsUtil.isClusterLocalFileSystem
+    return uri.startsWith("hdfs://") || uri.startsWith("dbfs:/");
   }
 
   private boolean isCascade(EnvironmentContext environmentContext) {
