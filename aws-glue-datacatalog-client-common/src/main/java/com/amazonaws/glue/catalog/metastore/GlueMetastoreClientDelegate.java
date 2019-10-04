@@ -777,8 +777,8 @@ public class GlueMetastoreClientDelegate {
       List<org.apache.hadoop.hive.metastore.api.Partition> hivePartitions) {
     checkNotNull(tbl.getPartitionKeys(), "Partition keys cannot be null");
     for (org.apache.hadoop.hive.metastore.api.Partition partition : hivePartitions) {
-      checkArgument(tbl.getDbName().equals(partition.getDbName()), "Partitions must be in the same DB");
-      checkArgument(tbl.getTableName().equals(partition.getTableName()), "Partitions must be in the same table");
+      checkArgument(tbl.getDbName().equalsIgnoreCase(partition.getDbName()), "Partitions must be in the same DB");
+      checkArgument(tbl.getTableName().equalsIgnoreCase(partition.getTableName()), "Partitions must be in the same table");
       checkNotNull(partition.getValues(), "Partition values cannot be null");
       checkArgument(tbl.getPartitionKeys().size() == partition.getValues().size(), "Number of table partition keys must match number of partition values");
     }
