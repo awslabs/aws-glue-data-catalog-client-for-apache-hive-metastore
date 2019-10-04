@@ -111,6 +111,7 @@ import org.apache.thrift.TException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -527,7 +528,7 @@ public class GlueMetastoreClientDelegate {
       newTable.setTableType(MANAGED_TABLE.toString());
     }
 
-    if (hiveShims.requireCalStats(conf, null, null, newTable, environmentContext) && newTable.getPartitionKeys().isEmpty()) {
+    if (hiveShims.requireCalStats(conf, null, null, newTable, environmentContext) && newTable.getPartitionKeys().isEmpty() && !statsSet(newTable)) {
       //update table stats for non-partition Table
       org.apache.hadoop.hive.metastore.api.Database db = getDatabase(newTable.getDbName());
       hiveShims.updateTableStatsFast(db, newTable, wh, false, true, environmentContext);
@@ -545,6 +546,18 @@ public class GlueMetastoreClientDelegate {
       logger.error(msg, e);
       throw new MetaException(msg + e);
     }
+  }
+
+  /**
+   * Returns true if stats have been set as metadata in t
+   */
+  private static boolean statsSet(org.apache.hadoop.hive.metastore.api.Table t) {
+	  List<String> statsKeys = Arrays.asList(
+		        StatsSetupConst.NUM_FILES,
+		        StatsSetupConst.RAW_DATA_SIZE,
+		        StatsSetupConst.ROW_COUNT,
+		        StatsSetupConst.TOTAL_SIZE);
+		    return t.getParameters().keySet().containsAll(statsKeys);
   }
 
   private boolean isCascade(EnvironmentContext environmentContext) {
