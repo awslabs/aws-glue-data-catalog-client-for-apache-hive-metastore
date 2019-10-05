@@ -394,7 +394,9 @@ public class GlueMetastoreClientDelegate {
     checkArgument(StringUtils.isNotEmpty(tableName), "tableName cannot be null or empty");
 
     if (!databaseExists(databaseName)) {
-      throw new UnknownDBException("Database: " + databaseName + " does not exist.");
+      //TODO: All the catches may need silencing here. Play by ear as things break.
+      logger.warn("Database: " + databaseName + " does not exist.");
+      return false;
     }
     try {
       GetTableRequest getTableRequest = new GetTableRequest().withDatabaseName(databaseName).withName(tableName)
