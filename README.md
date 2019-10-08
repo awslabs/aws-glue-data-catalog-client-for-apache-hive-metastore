@@ -1,3 +1,6 @@
+## This is the Okera specific implementation of the Glue Catalog
+We version it as <aws-version>-okera-<okera-version>-<SNAPSHOT>.jar
+
 ## AWS Glue Data Catalog Client for Apache Hive Metastore
 The AWS Glue Data Catalog is a fully managed, Apache Hive Metastore compatible, metadata repository. Customers can use the Data Catalog as a central repository to store structural and operational metadata for their data.
 
