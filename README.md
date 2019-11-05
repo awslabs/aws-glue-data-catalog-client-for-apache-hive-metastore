@@ -19,13 +19,13 @@ To build the Hive client, you need to first apply this [patch](https://issues.ap
 	patch -p0 <HIVE-12679.branch-2.3.patch
 	mvn clean install -DskipTests
 
-If you are using the default Maven settings, this will install a new version of patched Hive in ~/.m2/repositories/, i.e. ~/.m2/repository/org/apache/hive/hive/2.3.4-SNAPSHOT/.  The specific version of Hive will depend on the current version in pom.xml.  Presently, the latest version in the 2.3 branch (branch-2.3) is "2.3.4-SNAPSHOT".  You will need this version to build the client.
+If you are using the default Maven settings, this will install a new version of patched Hive in ~/.m2/repositories/, i.e. ~/.m2/repository/org/apache/hive/hive/2.3.7-SNAPSHOT/.  The specific version of Hive will depend on the current version in pom.xml.  Presently, the latest version in the 2.3 branch (branch-2.3) is "2.3.7-SNAPSHOT".  You will need this version to build the client.
 
 ## Building the Hive Client
 
 Once you have successfully patched and installed Hive locally, move into the AWS Glue Data Catalog Client repository and update the following property in pom.xml.
 
-	<hive2.version>2.3.4-SNAPSHOT</hive2.version>
+	<hive2.version>2.3.7-SNAPSHOT</hive2.version>
 
 You are now ready to build the Hive client.
 

@@ -101,6 +101,8 @@ import org.apache.hadoop.hive.metastore.api.CompactionResponse;
 import org.apache.hadoop.hive.metastore.partition.spec.PartitionSpecProxy;
 import org.apache.log4j.Logger;
 import org.apache.thrift.TException;
+import org.apache.hadoop.hive.metastore.api.PartitionValuesRequest;
+import org.apache.hadoop.hive.metastore.api.PartitionValuesResponse;
 
 import java.io.IOException;
 import java.net.URI;
@@ -1781,6 +1783,12 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
 
     return new Path(currentUri.getScheme(), currentUri.getAuthority(),
           defaultNewPath.toUri().getPath());
+  }
+
+  @Override
+  public PartitionValuesResponse listPartitionValues(PartitionValuesRequest arg0)
+      throws MetaException, TException, NoSuchObjectException {
+    return null;
   }
 
 }
