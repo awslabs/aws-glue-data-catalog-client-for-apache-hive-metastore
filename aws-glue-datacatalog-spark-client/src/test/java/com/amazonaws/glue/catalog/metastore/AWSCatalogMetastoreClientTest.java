@@ -122,6 +122,7 @@ public class AWSCatalogMetastoreClientTest {
   private Warehouse wh;
   private HiveConf conf;
   private GlueClientFactory clientFactory;
+  private AWSGlueMetastoreFactory metastoreFactory;
   private final AwsGlueHiveShims hiveShims = ShimsLoader.getHiveShims();
 
   // Test objects
@@ -152,9 +153,11 @@ public class AWSCatalogMetastoreClientTest {
     conf.setInt(GlueMetastoreClientDelegate.NUM_PARTITION_SEGMENTS_CONF, 1);
     glueClient = spy(AWSGlue.class);
     clientFactory = mock(GlueClientFactory.class);
+    metastoreFactory = mock(AWSGlueMetastoreFactory.class);
     when(clientFactory.newClient()).thenReturn(glueClient);
+    when(metastoreFactory.newMetastore(conf)).thenReturn(new DefaultAWSGlueMetastore(conf, glueClient));
     metastoreClient = new AWSCatalogMetastoreClient.Builder().withClientFactory(clientFactory)
-        .withWarehouse(wh).createDefaults(false).withHiveConf(conf).build();
+        .withMetastoreFactory(metastoreFactory).withWarehouse(wh).createDefaults(false).withHiveConf(conf).build();
   }
 
   private void setupMockWarehouseForPath(Path path, boolean isDir, boolean isDefaultDbPath) throws MetaException {
@@ -172,7 +175,7 @@ public class AWSCatalogMetastoreClientTest {
 
     when(conf.getVar(conf, ConfVars.USERS_IN_ADMIN_ROLE, "")).thenReturn("");
     metastoreClient = new AWSCatalogMetastoreClient.Builder().withClientFactory(clientFactory)
-        .withWarehouse(wh).createDefaults(true).withHiveConf(conf).build();
+        .withMetastoreFactory(metastoreFactory).withWarehouse(wh).createDefaults(true).withHiveConf(conf).build();
 
     verify(glueClient, times(1)).createDatabase(any(CreateDatabaseRequest.class));
     verify(wh, times(1)).getDefaultDatabasePath(DEFAULT_DATABASE_NAME);

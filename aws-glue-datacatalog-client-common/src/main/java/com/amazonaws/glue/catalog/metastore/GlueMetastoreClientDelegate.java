@@ -10,49 +10,17 @@ import com.amazonaws.glue.catalog.util.MetastoreClientUtils;
 import com.amazonaws.glue.catalog.util.PartitionKey;
 import com.amazonaws.glue.shims.AwsGlueHiveShims;
 import com.amazonaws.glue.shims.ShimsLoader;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.BatchGetPartitionRequest;
-import com.amazonaws.services.glue.model.BatchGetPartitionResult;
 import com.amazonaws.services.glue.model.Column;
-import com.amazonaws.services.glue.model.CreateDatabaseRequest;
-import com.amazonaws.services.glue.model.CreateTableRequest;
-import com.amazonaws.services.glue.model.CreateUserDefinedFunctionRequest;
 import com.amazonaws.services.glue.model.Database;
 import com.amazonaws.services.glue.model.DatabaseInput;
-import com.amazonaws.services.glue.model.DeleteDatabaseRequest;
-import com.amazonaws.services.glue.model.DeletePartitionRequest;
-import com.amazonaws.services.glue.model.DeleteTableRequest;
-import com.amazonaws.services.glue.model.DeleteUserDefinedFunctionRequest;
 import com.amazonaws.services.glue.model.EntityNotFoundException;
-import com.amazonaws.services.glue.model.GetDatabaseRequest;
-import com.amazonaws.services.glue.model.GetDatabaseResult;
-import com.amazonaws.services.glue.model.GetDatabasesRequest;
-import com.amazonaws.services.glue.model.GetDatabasesResult;
-import com.amazonaws.services.glue.model.GetPartitionRequest;
-import com.amazonaws.services.glue.model.GetPartitionResult;
-import com.amazonaws.services.glue.model.GetPartitionsRequest;
-import com.amazonaws.services.glue.model.GetPartitionsResult;
-import com.amazonaws.services.glue.model.GetTableRequest;
-import com.amazonaws.services.glue.model.GetTableResult;
-import com.amazonaws.services.glue.model.GetTablesRequest;
-import com.amazonaws.services.glue.model.GetTablesResult;
-import com.amazonaws.services.glue.model.GetUserDefinedFunctionRequest;
-import com.amazonaws.services.glue.model.GetUserDefinedFunctionResult;
-import com.amazonaws.services.glue.model.GetUserDefinedFunctionsRequest;
-import com.amazonaws.services.glue.model.GetUserDefinedFunctionsResult;
 import com.amazonaws.services.glue.model.Partition;
 import com.amazonaws.services.glue.model.PartitionInput;
 import com.amazonaws.services.glue.model.PartitionValueList;
-import com.amazonaws.services.glue.model.Segment;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.glue.model.TableInput;
-import com.amazonaws.services.glue.model.UpdateDatabaseRequest;
-import com.amazonaws.services.glue.model.UpdatePartitionRequest;
-import com.amazonaws.services.glue.model.UpdateTableRequest;
-import com.amazonaws.services.glue.model.UpdateUserDefinedFunctionRequest;
 import com.amazonaws.services.glue.model.UserDefinedFunction;
 import com.amazonaws.services.glue.model.UserDefinedFunctionInput;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -111,12 +79,10 @@ import org.apache.thrift.TException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.regex.Pattern;
@@ -150,37 +116,18 @@ public class GlueMetastoreClientDelegate {
   public static final String INDEX_PREFIX = "index_prefix";
 
   private static final int BATCH_CREATE_PARTITIONS_MAX_REQUEST_SIZE = 100;
-  private static final int BATCH_GET_PARTITIONS_MAX_REQUEST_SIZE = 1000;
-  /**
-   * Based on the maxResults parameter at https://docs.aws.amazon.com/glue/latest/webapi/API_GetPartitions.html
-   */
-  public static final int GET_PARTITIONS_MAX_SIZE = 1000;
 
   public static final String CUSTOM_EXECUTOR_FACTORY_CONF = "hive.metastore.executorservice.factory.class";
 
   static final String GLUE_METASTORE_DELEGATE_THREADPOOL_NAME_FORMAT = "glue-metastore-delegate-%d";
 
-  /**
-   * Maximum number of Glue Segments. A segment defines a non-overlapping region of a table's partitions,
-   * allowing multiple requests to be executed in parallel.
-   */
-  public static final int DEFAULT_NUM_PARTITION_SEGMENTS = 5;
-
-  /**
-   * Currently the upper limit allowed by Glue is 10.
-   *
-   * @see https://docs.aws.amazon.com/glue/latest/webapi/API_Segment.html
-   */
-  public static final int MAX_NUM_PARTITION_SEGMENTS = 10;
-
   private final ExecutorService executorService;
-  private final AWSGlue glueClient;
+  private final AWSGlueMetastore glueMetastore;
   private final HiveConf conf;
   private final Warehouse wh;
   private final AwsGlueHiveShims hiveShims = ShimsLoader.getHiveShims();
   private final String catalogId;
-  private final int numPartitionSegments;
-  
+
   public static final String CATALOG_ID_CONF = "hive.metastore.glue.catalogid";
   public static final String NUM_PARTITION_SEGMENTS_CONF = "aws.glue.partition.num.segments";
 
@@ -194,16 +141,14 @@ public class GlueMetastoreClientDelegate {
     return factory.getExecutorService(conf);
   }
 
-  public GlueMetastoreClientDelegate(HiveConf conf, AWSGlue glueClient, Warehouse wh) throws MetaException {
+  public GlueMetastoreClientDelegate(HiveConf conf, AWSGlueMetastore glueMetastore,
+                                     Warehouse wh) throws MetaException {
     checkNotNull(conf, "Hive Config cannot be null");
-    checkNotNull(glueClient, "glueClient cannot be null");
+    checkNotNull(glueMetastore, "glueMetastore cannot be null");
     checkNotNull(wh, "Warehouse cannot be null");
-    numPartitionSegments = conf.getInt(NUM_PARTITION_SEGMENTS_CONF, DEFAULT_NUM_PARTITION_SEGMENTS);
-    checkArgument(numPartitionSegments <= MAX_NUM_PARTITION_SEGMENTS,
-            String.format("Hive Config [%s] can't exceed %d", NUM_PARTITION_SEGMENTS_CONF, MAX_NUM_PARTITION_SEGMENTS));
 
     this.conf = conf;
-    this.glueClient = glueClient;
+    this.glueMetastore = glueMetastore;
     this.wh = wh;
     this.executorService = getExecutorService();
 
@@ -226,9 +171,7 @@ public class GlueMetastoreClientDelegate {
 
     try {
       DatabaseInput catalogDatabase = GlueInputConverter.convertToDatabaseInput(database);
-      CreateDatabaseRequest createDatabaseRequest = new CreateDatabaseRequest().withDatabaseInput(catalogDatabase)
-          .withCatalogId(catalogId);
-      glueClient.createDatabase(createDatabaseRequest);
+      glueMetastore.createDatabase(catalogDatabase);
     } catch (AmazonServiceException e) {
       if (madeDir) {
         wh.deleteDir(dbPath, true);
@@ -245,13 +188,11 @@ public class GlueMetastoreClientDelegate {
     checkArgument(StringUtils.isNotEmpty(name), "name cannot be null or empty");
 
     try {
-      GetDatabaseRequest getDatabaseRequest = new GetDatabaseRequest().withName(name).withCatalogId(catalogId);
-      GetDatabaseResult result = glueClient.getDatabase(getDatabaseRequest);
-      Database catalogDatabase = result.getDatabase();
+      Database catalogDatabase = glueMetastore.getDatabase(name);
       return CatalogToHiveConverter.convertDatabase(catalogDatabase);
     } catch (AmazonServiceException e) {
       throw CatalogToHiveConverter.wrapInHiveException(e);
-    } catch (Exception e){
+    } catch (Exception e) {
       String msg = "Unable to get database object: ";
       logger.error(msg, e);
       throw new MetaException(msg + e);
@@ -265,22 +206,17 @@ public class GlueMetastoreClientDelegate {
     }
 
     try {
-      List<String> ret = Lists.newArrayList();
-      String nextToken = null;
+      List<String> ret = new ArrayList<>();
 
-      do {
-        GetDatabasesRequest getDatabasesRequest = new GetDatabasesRequest().withNextToken(nextToken).withCatalogId(
-            catalogId);
-        GetDatabasesResult result = glueClient.getDatabases(getDatabasesRequest);
-        nextToken = result.getNextToken();
+      List<Database> allDatabases = glueMetastore.getAllDatabases();
 
-        for (Database db : result.getDatabaseList()) {
+      //filter by pattern
+      for (Database db : allDatabases) {
           String name = db.getName();
           if (Pattern.matches(pattern, name)) {
             ret.add(name);
           }
         }
-      } while (nextToken != null);
       return ret;
     } catch (AmazonServiceException e) {
       throw CatalogToHiveConverter.wrapInHiveException(e);
@@ -297,9 +233,7 @@ public class GlueMetastoreClientDelegate {
 
     try {
       DatabaseInput catalogDatabase = GlueInputConverter.convertToDatabaseInput(database);
-      UpdateDatabaseRequest updateDatabaseRequest = new UpdateDatabaseRequest().withName(databaseName)
-          .withDatabaseInput(catalogDatabase).withCatalogId(catalogId);
-      glueClient.updateDatabase(updateDatabaseRequest);
+      glueMetastore.updateDatabase(databaseName, catalogDatabase);
     } catch (AmazonServiceException e) {
       throw CatalogToHiveConverter.wrapInHiveException(e);
     } catch (Exception e){
@@ -322,9 +256,7 @@ public class GlueMetastoreClientDelegate {
 
       // TODO: handle cascade
       if (isEmptyDatabase || cascade) {
-        DeleteDatabaseRequest deleteDatabaseRequest = new DeleteDatabaseRequest().withName(name).withCatalogId(
-            catalogId);
-        glueClient.deleteDatabase(deleteDatabaseRequest);
+        glueMetastore.deleteDatabase(name);
       } else {
         throw new InvalidOperationException("Database " + name + " is not empty.");
       }
@@ -379,9 +311,7 @@ public class GlueMetastoreClientDelegate {
           Long.toString(System.currentTimeMillis() / MILLISECOND_TO_SECOND_FACTOR));
 
       TableInput tableInput = GlueInputConverter.convertToTableInput(tbl);
-      CreateTableRequest createTableRequest = new CreateTableRequest().withTableInput(tableInput)
-          .withDatabaseName(tbl.getDbName()).withCatalogId(catalogId);
-      glueClient.createTable(createTableRequest);
+      glueMetastore.createTable(tbl.getDbName(), tableInput);
     } catch (AmazonServiceException e) {
       if (dirCreated) {
         Path tblPath = new Path(tbl.getSd().getLocation());
@@ -403,9 +333,7 @@ public class GlueMetastoreClientDelegate {
       throw new UnknownDBException("Database: " + databaseName + " does not exist.");
     }
     try {
-      GetTableRequest getTableRequest = new GetTableRequest().withDatabaseName(databaseName).withName(tableName)
-          .withCatalogId(catalogId);
-      glueClient.getTable(getTableRequest);
+      glueMetastore.getTable(databaseName, tableName);
       return true;
     } catch (EntityNotFoundException e) {
       return false;
@@ -423,11 +351,9 @@ public class GlueMetastoreClientDelegate {
     checkArgument(StringUtils.isNotEmpty(tableName), "tableName cannot be null or empty");
 
     try {
-      GetTableRequest getTableRequest = new GetTableRequest().withDatabaseName(dbName).withName(tableName)
-          .withCatalogId(catalogId);
-      GetTableResult result = glueClient.getTable(getTableRequest);
-      validateGlueTable(result.getTable());
-      return CatalogToHiveConverter.convertTable(result.getTable(), dbName);
+      Table table = glueMetastore.getTable(dbName, tableName);
+      validateGlueTable(table);
+      return CatalogToHiveConverter.convertTable(table, dbName);
     } catch (AmazonServiceException e) {
       throw CatalogToHiveConverter.wrapInHiveException(e);
     } catch (Exception e) {
@@ -442,19 +368,10 @@ public class GlueMetastoreClientDelegate {
 
     List<String> names = Lists.newArrayList();
     try {
-      String nextToken = null;
-
-      do {
-        GetTablesRequest getTablesRequest = new GetTablesRequest().withDatabaseName(dbname)
-            .withExpression(tablePattern).withNextToken(nextToken).withCatalogId(catalogId);
-        GetTablesResult result = glueClient.getTables(getTablesRequest);
-
-        for (Table catalogTable : result.getTableList()) {
+      List<Table> tables = glueMetastore.getTables(dbname, tablePattern);
+      for (Table catalogTable : tables) {
           names.add(catalogTable.getName());
-        }
-
-        nextToken = result.getNextToken();
-      } while (nextToken != null);
+      }
       return names;
     } catch (AmazonServiceException e) {
       throw CatalogToHiveConverter.wrapInHiveException(e);
@@ -472,30 +389,17 @@ public class GlueMetastoreClientDelegate {
   ) throws TException  {
     List<TableMeta> tables = new ArrayList<>();
     List<String> databases = getDatabases(dbPatterns);
-
     for (String dbName : databases) {
       String nextToken = null;
-
-      do {
-        GetTablesRequest getTablesRequest = new GetTablesRequest()
-            .withDatabaseName(dbName)
-            .withExpression(tablePatterns)
-            .withNextToken(nextToken)
-            .withCatalogId(catalogId);
-        GetTablesResult result = glueClient.getTables(getTablesRequest);
-
-        for (Table catalogTable : result.getTableList()) {
-          if (tableTypes == null ||
-              tableTypes.isEmpty() ||
-              tableTypes.contains(catalogTable.getTableType())) {
-            tables.add(CatalogToHiveConverter.convertTableMeta(catalogTable, dbName));
-          }
+      List<Table> dbTables = glueMetastore.getTables(dbName, tablePatterns);
+      for (Table catalogTable : dbTables) {
+        if (tableTypes == null ||
+            tableTypes.isEmpty() ||
+            tableTypes.contains(catalogTable.getTableType())) {
+          tables.add(CatalogToHiveConverter.convertTableMeta(catalogTable, dbName));
         }
-
-        nextToken = result.getNextToken();
-      } while (nextToken != null);
+      }
     }
-
     return tables;
   }
 
@@ -542,9 +446,7 @@ public class GlueMetastoreClientDelegate {
 
     try {
       TableInput newTableInput = GlueInputConverter.convertToTableInput(newTable);
-      UpdateTableRequest updateTableRequest = new UpdateTableRequest().withDatabaseName(dbName)
-          .withTableInput(newTableInput).withCatalogId(catalogId);
-      glueClient.updateTable(updateTableRequest);
+      glueMetastore.updateTable(dbName, newTableInput);
     } catch (AmazonServiceException e) {
       throw CatalogToHiveConverter.wrapInHiveException(e);
     } catch (Exception e) {
@@ -585,9 +487,7 @@ public class GlueMetastoreClientDelegate {
     dropIndexesForTable(dbName, tableName, deleteData && !isExternal);
 
     try {
-      DeleteTableRequest deleteTableRequest = new DeleteTableRequest().withDatabaseName(dbName).withName(tableName)
-          .withCatalogId(catalogId);
-      glueClient.deleteTable(deleteTableRequest);
+      glueMetastore.deleteTable(dbName, tableName);
     } catch (AmazonServiceException e){
       throw CatalogToHiveConverter.wrapInHiveException(e);
     } catch (Exception e){
@@ -699,7 +599,8 @@ public class GlueMetastoreClientDelegate {
       boolean needResult
   ) throws TException {
     checkNotNull(partitions, "partitions cannot be null");
-    List<Partition> partitionsCreated = batchCreatePartitions(partitions, ifNotExists);
+    List<Partition> partitionsCreated =
+            batchCreatePartitions(partitions, ifNotExists);
     if (!needResult) {
       return null;
     }
@@ -750,7 +651,7 @@ public class GlueMetastoreClientDelegate {
       batchCreatePartitionsFutures.add(this.executorService.submit(new Callable<BatchCreatePartitionsHelper>() {
         @Override
         public BatchCreatePartitionsHelper call() throws Exception {
-          return new BatchCreatePartitionsHelper(glueClient, dbName, tableName, catalogId, partitionsOnePage, ifNotExists)
+          return new BatchCreatePartitionsHelper(glueMetastore, dbName, tableName, catalogId, partitionsOnePage, ifNotExists)
             .createPartitions();
         }
       }));
@@ -865,35 +766,18 @@ public class GlueMetastoreClientDelegate {
     for (String partitionName : partitionNames) {
       partitionsToGet.add(new PartitionValueList().withValues(partitionNameToVals(partitionName)));
     }
-
-    List<List<PartitionValueList>> batchedPartitionsToGet = Lists.partition(partitionsToGet, BATCH_GET_PARTITIONS_MAX_REQUEST_SIZE);
-    List<Future<BatchGetPartitionResult>> batchGetPartitionFutures = Lists.newArrayList();
-
-    for (List<PartitionValueList> batch : batchedPartitionsToGet) {
-      final BatchGetPartitionRequest request = new BatchGetPartitionRequest()
-          .withDatabaseName(databaseName)
-          .withTableName(tableName)
-          .withPartitionsToGet(batch)
-          .withCatalogId(catalogId);
-      batchGetPartitionFutures.add(this.executorService.submit(new Callable<BatchGetPartitionResult>() {
-        @Override
-        public BatchGetPartitionResult call() throws Exception {
-          return glueClient.batchGetPartition(request);
-        }
-      }));
-    }
-
-    List<org.apache.hadoop.hive.metastore.api.Partition> result = Lists.newArrayList();
     try {
-      for (Future<BatchGetPartitionResult> future : batchGetPartitionFutures) {
-        result.addAll(CatalogToHiveConverter.convertPartitions(future.get().getPartitions()));
-      }
-    } catch (ExecutionException e) {
-      throw CatalogToHiveConverter.wrapInHiveException(e.getCause());
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
+      List<Partition> partitions =
+              glueMetastore.getPartitionsByNames(databaseName, tableName, partitionsToGet);
+
+      return CatalogToHiveConverter.convertPartitions(partitions);
+    } catch (AmazonServiceException e) {
+      throw CatalogToHiveConverter.wrapInHiveException(e);
+    } catch (Exception e) {
+      String msg = "Unable to get partition by names: " + StringUtils.join(partitionNames, "/");
+      logger.error(msg, e);
+      throw new MetaException(msg + e);
     }
-    return result;
   }
 
   public org.apache.hadoop.hive.metastore.api.Partition getPartition(String dbName, String tblName, String partitionName)
@@ -910,15 +794,10 @@ public class GlueMetastoreClientDelegate {
     checkArgument(StringUtils.isNotEmpty(tblName), "tblName cannot be null or empty");
     checkNotNull(values, "values cannot be null");
    
-    GetPartitionRequest request = new GetPartitionRequest()
-        .withDatabaseName(dbName)
-        .withTableName(tblName)
-        .withPartitionValues(values)
-        .withCatalogId(catalogId);
+
     Partition partition;
     try {
-      GetPartitionResult res = glueClient.getPartition(request);
-      partition = res.getPartition();
+      partition = glueMetastore.getPartition(dbName, tblName, values);
       if (partition == null) {
         logger.debug("No partitions were return for dbName = " + dbName + ", tblName = " + tblName + ", values = " + values);
         return null;
@@ -953,101 +832,15 @@ public class GlueMetastoreClientDelegate {
   ) throws TException {
     checkArgument(StringUtils.isNotEmpty(databaseName), "databaseName cannot be null or empty");
     checkArgument(StringUtils.isNotEmpty(tableName), "tableName cannot be null or empty");
-    if (max == 0) {
-      return Collections.emptyList();
+    try{
+      return glueMetastore.getPartitions(databaseName, tableName, expression, max);
+    } catch (AmazonServiceException e) {
+      throw CatalogToHiveConverter.wrapInHiveException(e);
+    } catch (Exception e) {
+      String msg = "Unable to get partitions with expression: " + expression;
+      logger.error(msg, e);
+      throw new MetaException(msg + e);
     }
-
-    if (max < 0 || max > GET_PARTITIONS_MAX_SIZE) {
-      return getPartitionsParallel(databaseName, tableName, expression, max);
-    } else {
-      // We don't need to get too many partitions, so just do it serially.
-      return getCatalogPartitions(databaseName, tableName, expression, max, null);
-    }
-  }
-
-  private List<Partition> getPartitionsParallel(
-          final String databaseName,
-          final String tableName,
-          final String expression,
-          final long max) throws TException {
-    // Prepare the segments
-    List<Segment> segments = Lists.newArrayList();
-    for (int i = 0; i < numPartitionSegments; i++) {
-      segments.add(new Segment()
-              .withSegmentNumber(i)
-              .withTotalSegments(numPartitionSegments));
-    }
-    // Submit Glue API calls in parallel using the thread pool.
-    // We could convert this into a parallelStream after upgrading to JDK 8 compiler base.
-    List<Future<List<Partition>>> futures = Lists.newArrayList();
-    for (final Segment segment : segments) {
-      futures.add(this.executorService.submit(new Callable<List<Partition>>() {
-        @Override
-        public List<Partition> call() throws Exception {
-          return getCatalogPartitions(databaseName, tableName, expression, max, segment);
-        }
-      }));
-    }
-
-    // Get the results
-    List<Partition> partitions = Lists.newArrayList();
-    try {
-      for (Future<List<Partition>> future : futures) {
-        List<Partition> segmentPartitions = future.get();
-        if (partitions.size() + segmentPartitions.size() >= max && max > 0) {
-          // Extract the required number of partitions from the segment and we're done.
-          long remaining = max - partitions.size();
-          partitions.addAll(segmentPartitions.subList(0, (int) remaining));
-          break;
-        } else {
-          partitions.addAll(segmentPartitions);
-        }
-      }
-    } catch (ExecutionException e) {
-      Throwables.propagateIfInstanceOf(e.getCause(), TException.class);
-      Throwables.propagate(e.getCause());
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-    }
-    return partitions;
-  }
-
-  private List<Partition> getCatalogPartitions(
-          String databaseName,
-          String tableName,
-          String expression,
-          long max,
-          Segment segment) throws TException {
-    List<Partition> partitions = Lists.newArrayList();
-    String nextToken = null;
-    do {
-      GetPartitionsRequest request = new GetPartitionsRequest()
-          .withDatabaseName(databaseName)
-          .withTableName(tableName)
-          .withExpression(expression)
-          .withNextToken(nextToken)
-          .withCatalogId(catalogId)
-          .withSegment(segment);
-      try {
-        GetPartitionsResult res = glueClient.getPartitions(request);
-        List<Partition> list = res.getPartitions();
-        if ((partitions.size() + list.size()) >= max && max > 0) {
-          long remaining = max - partitions.size();
-          partitions.addAll(list.subList(0, (int) remaining));
-          break;
-        }
-        partitions.addAll(list);
-        nextToken = res.getNextToken();
-      } catch (AmazonServiceException e) {
-        throw CatalogToHiveConverter.wrapInHiveException(e);
-      } catch (Exception e) {
-        String msg = "Unable to get partitions with expression: " + expression;
-        logger.error(msg, e);
-        throw new MetaException(msg + e);
-      }
-    } while (nextToken != null);
-
-    return partitions;
   }
 
   public boolean dropPartition(
@@ -1072,12 +865,7 @@ public class GlueMetastoreClientDelegate {
     }
 
     try {
-      DeletePartitionRequest request = new DeletePartitionRequest()
-          .withDatabaseName(dbName)
-          .withTableName(tblName)
-          .withPartitionValues(values)
-          .withCatalogId(catalogId);
-      glueClient.deletePartition(request);
+      glueMetastore.deletePartition(dbName, tblName, partition.getValues());
     } catch (AmazonServiceException e) {
       throw CatalogToHiveConverter.wrapInHiveException(e);
     } catch (Exception e) {
@@ -1149,15 +937,9 @@ public class GlueMetastoreClientDelegate {
       }
 
       PartitionInput partitionInput = GlueInputConverter.convertToPartitionInput(part);
-      UpdatePartitionRequest request = new UpdatePartitionRequest()
-        .withDatabaseName(dbName)
-        .withTableName(tblName)
-        .withPartitionInput(partitionInput)
-        .withPartitionValueList(part.getValues())
-        .withCatalogId(catalogId);
      
       try {
-        glueClient.updatePartition(request);
+        glueMetastore.updatePartition(dbName, tblName, part.getValues(), partitionInput);
       } catch (AmazonServiceException e) {
         throw CatalogToHiveConverter.wrapInHiveException(e);
       } catch (Exception e) {
@@ -1684,10 +1466,8 @@ public class GlueMetastoreClientDelegate {
   public org.apache.hadoop.hive.metastore.api.Function getFunction(String dbName, String functionName)
       throws TException {
     try {
-      GetUserDefinedFunctionRequest getUserDefinedFunctionRequest = new GetUserDefinedFunctionRequest()
-          .withDatabaseName(dbName).withFunctionName(functionName).withCatalogId(catalogId);
-      GetUserDefinedFunctionResult result = glueClient.getUserDefinedFunction(getUserDefinedFunctionRequest);
-      return CatalogToHiveConverter.convertFunction(dbName, result.getUserDefinedFunction());
+      UserDefinedFunction userDefinedFunction = glueMetastore.getUserDefinedFunction(dbName, functionName);
+      return CatalogToHiveConverter.convertFunction(dbName, userDefinedFunction);
     } catch (AmazonServiceException e) {
       logger.error(e);
       throw CatalogToHiveConverter.wrapInHiveException(e);
@@ -1703,7 +1483,7 @@ public class GlueMetastoreClientDelegate {
    * metastore and converts back to Hive function.
    * 
    * @param dbName
-   * @param functionName
+   * @param pattern
    * @return
    * @throws MetaException
    * @throws TException
@@ -1711,18 +1491,11 @@ public class GlueMetastoreClientDelegate {
   public List<String> getFunctions(String dbName, String pattern) throws TException {
     try {
       List<String> functionNames = Lists.newArrayList();
-      String nextToken = null;
-
-      do {
-        GetUserDefinedFunctionsRequest getUserDefinedFunctionsRequest = new GetUserDefinedFunctionsRequest()
-            .withDatabaseName(dbName).withPattern(pattern).withNextToken(nextToken).withCatalogId(catalogId);
-        GetUserDefinedFunctionsResult result = glueClient.getUserDefinedFunctions(getUserDefinedFunctionsRequest);
-        nextToken = result.getNextToken();
-
-        for (UserDefinedFunction catalogFunction : result.getUserDefinedFunctions()) {
-          functionNames.add(catalogFunction.getFunctionName());
-        }
-      } while (nextToken != null);
+      List<UserDefinedFunction> functions =
+              glueMetastore.getUserDefinedFunctions(dbName, pattern);
+      for (UserDefinedFunction catalogFunction : functions) {
+        functionNames.add(catalogFunction.getFunctionName());
+      }
       return functionNames;
     } catch (AmazonServiceException e) {
       logger.error(e);
@@ -1746,9 +1519,7 @@ public class GlueMetastoreClientDelegate {
       TException {
     try {
       UserDefinedFunctionInput functionInput = GlueInputConverter.convertToUserDefinedFunctionInput(function);
-      CreateUserDefinedFunctionRequest createUserDefinedFunctionRequest = new CreateUserDefinedFunctionRequest()
-          .withDatabaseName(function.getDbName()).withFunctionInput(functionInput).withCatalogId(catalogId);
-      glueClient.createUserDefinedFunction(createUserDefinedFunctionRequest);
+      glueMetastore.createUserDefinedFunction(function.getDbName(), functionInput);
     } catch (AmazonServiceException e) {
       logger.error(e);
       throw CatalogToHiveConverter.wrapInHiveException(e);
@@ -1773,9 +1544,7 @@ public class GlueMetastoreClientDelegate {
   public void dropFunction(String dbName, String functionName) throws NoSuchObjectException,
       InvalidObjectException, org.apache.hadoop.hive.metastore.api.InvalidInputException, TException {
     try {
-      DeleteUserDefinedFunctionRequest deleteUserDefinedFunctionRequest = new DeleteUserDefinedFunctionRequest()
-          .withDatabaseName(dbName).withFunctionName(functionName).withCatalogId(catalogId);
-      glueClient.deleteUserDefinedFunction(deleteUserDefinedFunctionRequest);
+      glueMetastore.deleteUserDefinedFunction(dbName, functionName);
     } catch (AmazonServiceException e) {
       logger.error(e);
       throw CatalogToHiveConverter.wrapInHiveException(e);
@@ -1801,10 +1570,7 @@ public class GlueMetastoreClientDelegate {
       TException {
     try {
       UserDefinedFunctionInput functionInput = GlueInputConverter.convertToUserDefinedFunctionInput(newFunction);
-      UpdateUserDefinedFunctionRequest updateUserDefinedFunctionRequest = new UpdateUserDefinedFunctionRequest()
-          .withDatabaseName(dbName).withFunctionName(functionName).withFunctionInput(functionInput)
-          .withCatalogId(catalogId);
-      glueClient.updateUserDefinedFunction(updateUserDefinedFunctionRequest);
+      glueMetastore.updateUserDefinedFunction(dbName, functionName, functionInput);
     } catch (AmazonServiceException e) {
       logger.error(e);
       throw CatalogToHiveConverter.wrapInHiveException(e);
@@ -1829,10 +1595,7 @@ public class GlueMetastoreClientDelegate {
   public List<FieldSchema> getFields(String db, String tableName) throws MetaException, TException,
       UnknownTableException, UnknownDBException {
     try {
-      GetTableRequest getTableRequest = new GetTableRequest().withDatabaseName(db).withName(tableName)
-          .withCatalogId(catalogId);
-      GetTableResult result = glueClient.getTable(getTableRequest);
-      Table table = result.getTable();
+      Table table = glueMetastore.getTable(db, tableName);
       return CatalogToHiveConverter.convertFieldSchemaList(table.getStorageDescriptor().getColumns());
     } catch (AmazonServiceException e) {
       throw CatalogToHiveConverter.wrapInHiveException(e);
@@ -1857,10 +1620,7 @@ public class GlueMetastoreClientDelegate {
   public List<FieldSchema> getSchema(String db, String tableName) throws TException,
       UnknownTableException, UnknownDBException {
     try {
-      GetTableRequest getTableRequest = new GetTableRequest().withDatabaseName(db).withName(tableName)
-          .withCatalogId(catalogId);
-      GetTableResult result = glueClient.getTable(getTableRequest);
-      Table table = result.getTable();
+      Table table = glueMetastore.getTable(db, tableName);
       List<Column> schemas = table.getStorageDescriptor().getColumns();
       if (table.getPartitionKeys() != null && !table.getPartitionKeys().isEmpty()) {
         schemas.addAll(table.getPartitionKeys());
@@ -1890,10 +1650,8 @@ public class GlueMetastoreClientDelegate {
       org.apache.hadoop.hive.metastore.api.Partition newPartition) throws InvalidOperationException,
       TException {
     try {
-      UpdatePartitionRequest updatePartitionRequest = new UpdatePartitionRequest().withDatabaseName(databaseName)
-          .withTableName(tableName).withPartitionValueList(partitionValues)
-          .withPartitionInput(GlueInputConverter.convertToPartitionInput(newPartition)).withCatalogId(catalogId);
-      glueClient.updatePartition(updatePartitionRequest);
+      PartitionInput partitionInput = GlueInputConverter.convertToPartitionInput(newPartition);
+      glueMetastore.updatePartition(databaseName, tableName, partitionValues, partitionInput);
     } catch (AmazonServiceException e) {
       throw CatalogToHiveConverter.wrapInHiveException(e);
     }

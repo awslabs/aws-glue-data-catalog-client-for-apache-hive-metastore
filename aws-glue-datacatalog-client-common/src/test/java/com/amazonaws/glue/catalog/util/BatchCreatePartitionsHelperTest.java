@@ -1,5 +1,6 @@
 package com.amazonaws.glue.catalog.util;
 
+import com.amazonaws.glue.catalog.metastore.AWSGlueMetastore;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.AlreadyExistsException;
 import com.amazonaws.services.glue.model.BatchCreatePartitionRequest;
@@ -39,7 +40,7 @@ import static org.junit.Assert.assertTrue;
 public class BatchCreatePartitionsHelperTest {
 
   @Mock
-  private AWSGlue client;
+  private AWSGlueMetastore awsGlueMetastore;
 
   private BatchCreatePartitionsHelper batchCreatePartitionsHelper;
 
@@ -56,7 +57,7 @@ public class BatchCreatePartitionsHelperTest {
     mockBatchCreateSuccess();
 
     List<Partition> partitions = Lists.newArrayList();
-    batchCreatePartitionsHelper = new BatchCreatePartitionsHelper(client, NAMESPACE_NAME, TABLE_NAME, null, partitions, false)
+    batchCreatePartitionsHelper = new BatchCreatePartitionsHelper(awsGlueMetastore, NAMESPACE_NAME, TABLE_NAME, null, partitions, false)
         .createPartitions();
 
     assertTrue(batchCreatePartitionsHelper.getPartitionsCreated().isEmpty());
@@ -72,7 +73,7 @@ public class BatchCreatePartitionsHelperTest {
     List<Partition> partitions = Lists.newArrayList(
         TestObjects.getTestPartition(NAMESPACE_NAME, TABLE_NAME, values1),
         TestObjects.getTestPartition(NAMESPACE_NAME, TABLE_NAME, values2));
-    batchCreatePartitionsHelper = new BatchCreatePartitionsHelper(client, NAMESPACE_NAME, TABLE_NAME, null, partitions, false)
+    batchCreatePartitionsHelper = new BatchCreatePartitionsHelper(awsGlueMetastore, NAMESPACE_NAME, TABLE_NAME, null, partitions, false)
         .createPartitions();
 
     assertEquals(2, batchCreatePartitionsHelper.getPartitionsCreated().size());
@@ -93,7 +94,7 @@ public class BatchCreatePartitionsHelperTest {
     List<Partition> partitions = Lists.newArrayList(
         TestObjects.getTestPartition(NAMESPACE_NAME, TABLE_NAME, values1),
         TestObjects.getTestPartition(NAMESPACE_NAME, TABLE_NAME, values2));
-    batchCreatePartitionsHelper = new BatchCreatePartitionsHelper(client, NAMESPACE_NAME, TABLE_NAME, null, partitions, false);
+    batchCreatePartitionsHelper = new BatchCreatePartitionsHelper(awsGlueMetastore, NAMESPACE_NAME, TABLE_NAME, null, partitions, false);
     batchCreatePartitionsHelper.createPartitions();
 
     assertNotNull(batchCreatePartitionsHelper.getFirstTException());
@@ -113,12 +114,12 @@ public class BatchCreatePartitionsHelperTest {
     Partition partition2 = TestObjects.getTestPartition(NAMESPACE_NAME, TABLE_NAME, values2);
     Partition partition3 = TestObjects.getTestPartition(NAMESPACE_NAME, TABLE_NAME, values3);
     List<Partition> partitions = Lists.newArrayList(partition1, partition2, partition3);
-    Mockito.when(client.getPartition(Mockito.any(GetPartitionRequest.class)))
-        .thenReturn(new GetPartitionResult().withPartition(partition1))
+    Mockito.when(awsGlueMetastore.getPartition(Mockito.anyString(), Mockito.anyString(), Mockito.anyList()))
+        .thenReturn(partition1)
         .thenThrow(new EntityNotFoundException("bar"))
         .thenThrow(new NullPointerException("baz"));
 
-    batchCreatePartitionsHelper = new BatchCreatePartitionsHelper(client, NAMESPACE_NAME, TABLE_NAME, null, partitions, false)
+    batchCreatePartitionsHelper = new BatchCreatePartitionsHelper(awsGlueMetastore, NAMESPACE_NAME, TABLE_NAME, null, partitions, false)
         .createPartitions();
 
     assertThat(batchCreatePartitionsHelper.getFirstTException(), is(instanceOf(MetaException.class)));
@@ -135,7 +136,7 @@ public class BatchCreatePartitionsHelperTest {
     List<String> values1 = Lists.newArrayList("val1");
     Partition partition = TestObjects.getTestPartition(NAMESPACE_NAME, TABLE_NAME, values1);
     List<Partition> partitions = Lists.newArrayList(partition, partition);
-    batchCreatePartitionsHelper = new BatchCreatePartitionsHelper(client, NAMESPACE_NAME, TABLE_NAME, null, partitions, false)
+    batchCreatePartitionsHelper = new BatchCreatePartitionsHelper(awsGlueMetastore, NAMESPACE_NAME, TABLE_NAME, null, partitions, false)
         .createPartitions();
 
     assertEquals(1, batchCreatePartitionsHelper.getPartitionsCreated().size());
@@ -157,7 +158,7 @@ public class BatchCreatePartitionsHelperTest {
     PartitionError error = getPartitionError(values1, new AlreadyExistsException("foo error msg"));
     mockBatchCreateWithFailures(Lists.newArrayList(error));
 
-    batchCreatePartitionsHelper = new BatchCreatePartitionsHelper(client, NAMESPACE_NAME, TABLE_NAME, null, partitions, false)
+    batchCreatePartitionsHelper = new BatchCreatePartitionsHelper(awsGlueMetastore, NAMESPACE_NAME, TABLE_NAME, null, partitions, false)
         .createPartitions();
 
     assertEquals(1, batchCreatePartitionsHelper.getPartitionsCreated().size());
@@ -178,7 +179,7 @@ public class BatchCreatePartitionsHelperTest {
     PartitionError error = getPartitionError(values1, new AlreadyExistsException("foo error msg"));
     mockBatchCreateWithFailures(Lists.newArrayList(error));
 
-    batchCreatePartitionsHelper = new BatchCreatePartitionsHelper(client, NAMESPACE_NAME, TABLE_NAME, null, partitions, true)
+    batchCreatePartitionsHelper = new BatchCreatePartitionsHelper(awsGlueMetastore, NAMESPACE_NAME, TABLE_NAME, null, partitions, true)
         .createPartitions();
 
     assertEquals(1, batchCreatePartitionsHelper.getPartitionsCreated().size());
@@ -199,7 +200,7 @@ public class BatchCreatePartitionsHelperTest {
     PartitionError error2 = getPartitionError(values2, new AlreadyExistsException("foo error msg2"));
     mockBatchCreateWithFailures(Lists.newArrayList(error1, error2));
 
-    batchCreatePartitionsHelper = new BatchCreatePartitionsHelper(client, NAMESPACE_NAME, TABLE_NAME, null, partitions, true)
+    batchCreatePartitionsHelper = new BatchCreatePartitionsHelper(awsGlueMetastore, NAMESPACE_NAME, TABLE_NAME, null, partitions, true)
         .createPartitions();
 
     assertEquals(0, batchCreatePartitionsHelper.getPartitionsCreated().size());
@@ -209,17 +210,18 @@ public class BatchCreatePartitionsHelperTest {
   }
 
   private void mockBatchCreateSuccess() {
-    Mockito.when(client.batchCreatePartition(Mockito.any(BatchCreatePartitionRequest.class)))
-        .thenReturn(new BatchCreatePartitionResult());
+    Mockito.when(awsGlueMetastore.createPartitions(Mockito.anyString(), Mockito.anyString(),
+            Mockito.anyList())).thenReturn(null);
   }
 
-  private void mockBatchCreateWithFailures(Collection<PartitionError> errors) {
-    Mockito.when(client.batchCreatePartition(Mockito.any(BatchCreatePartitionRequest.class)))
-        .thenReturn(new BatchCreatePartitionResult().withErrors(errors));
+  private void mockBatchCreateWithFailures(List<PartitionError> errors) {
+    Mockito.when(awsGlueMetastore.createPartitions(Mockito.anyString(), Mockito.anyString(), Mockito.anyList()))
+        .thenReturn(errors);
   }
 
   private void mockBatchCreateThrowsException(Exception e) {
-    Mockito.when(client.batchCreatePartition(Mockito.any(BatchCreatePartitionRequest.class))).thenThrow(e);
+    Mockito.when(awsGlueMetastore.createPartitions(Mockito.anyString(), Mockito.anyString(),
+            Mockito.anyList())).thenThrow(e);
   }
 
 }

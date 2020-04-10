@@ -30,6 +30,7 @@
     <maven.eclipse.plugin.version>2.9</maven.eclipse.plugin.version>
     <hamcrest.version>1.3</hamcrest.version>
     <httpclient.version>4.5.3</httpclient.version>
+    <guava.version>28.2-jre</guava.version>
     <checkstyle.config.location>${basedir}/dev-support/check_style.xml</checkstyle.config.location>
   </properties>
 

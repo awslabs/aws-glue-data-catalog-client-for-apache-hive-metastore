@@ -3,7 +3,6 @@ package com.amazonaws.glue.catalog.metastore;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.glue.catalog.converters.CatalogToHiveConverter;
 import com.amazonaws.glue.catalog.converters.HiveToCatalogConverter;
-import com.amazonaws.glue.catalog.converters.GlueInputConverter;
 import com.amazonaws.glue.catalog.util.BatchDeletePartitionsHelper;
 import com.amazonaws.glue.catalog.util.ExpressionHelper;
 import com.amazonaws.glue.catalog.util.LoggingHelper;
@@ -11,23 +10,10 @@ import com.amazonaws.glue.catalog.util.MetastoreClientUtils;
 import com.amazonaws.glue.shims.AwsGlueHiveShims;
 import com.amazonaws.glue.shims.ShimsLoader;
 import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.Column;
-import com.amazonaws.services.glue.model.CreateUserDefinedFunctionRequest;
-import com.amazonaws.services.glue.model.DeleteUserDefinedFunctionRequest;
 import com.amazonaws.services.glue.model.EntityNotFoundException;
 import com.amazonaws.services.glue.model.GetDatabaseRequest;
-import com.amazonaws.services.glue.model.GetTableRequest;
-import com.amazonaws.services.glue.model.GetTableResult;
-import com.amazonaws.services.glue.model.GetUserDefinedFunctionRequest;
-import com.amazonaws.services.glue.model.GetUserDefinedFunctionResult;
-import com.amazonaws.services.glue.model.GetUserDefinedFunctionsRequest;
-import com.amazonaws.services.glue.model.GetUserDefinedFunctionsResult;
 import com.amazonaws.services.glue.model.Partition;
 import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.glue.model.UpdatePartitionRequest;
-import com.amazonaws.services.glue.model.UpdateUserDefinedFunctionRequest;
-import com.amazonaws.services.glue.model.UserDefinedFunction;
-import com.amazonaws.services.glue.model.UserDefinedFunctionInput;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -94,7 +80,6 @@ import org.apache.thrift.TException;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -148,7 +133,8 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
     // TODO preserve existing functionality for HiveMetaHook
     wh = new Warehouse(this.conf);
 
-    glueMetastoreClientDelegate = new GlueMetastoreClientDelegate(this.conf, glueClient, wh);
+    AWSGlueMetastore glueMetastore = new AWSGlueMetastoreFactory().newMetastore(conf);
+    glueMetastoreClientDelegate = new GlueMetastoreClientDelegate(this.conf, glueMetastore, wh);
 
     snapshotActiveConf();
     catalogId = MetastoreClientUtils.getCatalogId(conf);
@@ -165,6 +151,7 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
     private HiveConf conf;
     private Warehouse wh;
     private GlueClientFactory clientFactory;
+    private AWSGlueMetastoreFactory metastoreFactory;
     private boolean createDefaults = true;
     private String catalogId;
 
@@ -175,6 +162,11 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
 
     public Builder withClientFactory(GlueClientFactory clientFactory) {
       this.clientFactory = clientFactory;
+      return this;
+    }
+
+    public Builder withMetastoreFactory(AWSGlueMetastoreFactory metastoreFactory) {
+      this.metastoreFactory = metastoreFactory;
       return this;
     }
 
@@ -214,8 +206,12 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
     }
 
     GlueClientFactory clientFactory = Objects.firstNonNull(builder.clientFactory, new AWSGlueClientFactory(conf));
+    AWSGlueMetastoreFactory metastoreFactory = Objects.firstNonNull(builder.metastoreFactory,
+            new AWSGlueMetastoreFactory());
+
     glueClient = clientFactory.newClient();
-    glueMetastoreClientDelegate = new GlueMetastoreClientDelegate(conf, glueClient, wh);
+    AWSGlueMetastore glueMetastore = metastoreFactory.newMetastore(conf);
+    glueMetastoreClientDelegate = new GlueMetastoreClientDelegate(this.conf, glueMetastore, wh);
 
     /**
      * It seems weird to create databases as part of glueClient construction. This

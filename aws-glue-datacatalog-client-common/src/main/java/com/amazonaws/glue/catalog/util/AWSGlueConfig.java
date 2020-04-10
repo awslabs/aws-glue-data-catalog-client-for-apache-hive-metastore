@@ -22,4 +22,12 @@ public final class AWSGlueConfig {
 
   public static final String AWS_GLUE_SOCKET_TIMEOUT = "aws.glue.socket-timeout";
   public static final int DEFAULT_SOCKET_TIMEOUT = ClientConfiguration.DEFAULT_SOCKET_TIMEOUT;
+
+  public static final String AWS_GLUE_DB_CACHE_ENABLE = "aws.glue.cache.db.enable";
+  public static final String AWS_GLUE_DB_CACHE_SIZE = "aws.glue.cache.db.size";
+  public static final String AWS_GLUE_DB_CACHE_TTL_MINS = "aws.glue.cache.db.ttl-mins";
+
+  public static final String AWS_GLUE_TABLE_CACHE_ENABLE = "aws.glue.cache.table.enable";
+  public static final String AWS_GLUE_TABLE_CACHE_SIZE = "aws.glue.cache.table.size";
+  public static final String AWS_GLUE_TABLE_CACHE_TTL_MINS = "aws.glue.cache.table.ttl-mins";
 }

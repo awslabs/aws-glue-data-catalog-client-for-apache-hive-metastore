@@ -5,7 +5,6 @@ import com.amazonaws.glue.catalog.converters.GlueInputConverter;
 import com.amazonaws.glue.catalog.util.TestObjects;
 import com.amazonaws.glue.catalog.util.TestExecutorServiceFactory;
 import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.AlreadyExistsException;
 import com.amazonaws.services.glue.model.BatchCreatePartitionRequest;
 import com.amazonaws.services.glue.model.BatchCreatePartitionResult;
 import com.amazonaws.services.glue.model.BatchGetPartitionRequest;
@@ -75,7 +74,6 @@ import org.mockito.stubbing.Answer;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -136,12 +134,12 @@ public class GlueMetastoreClientDelegateTest {
     conf = new HiveConf();
     glueClient = mock(AWSGlue.class);
     wh = mock(Warehouse.class);
-    metastoreClientDelegate = new GlueMetastoreClientDelegate(conf, glueClient, wh);
+    metastoreClientDelegate = new GlueMetastoreClientDelegate(conf, new DefaultAWSGlueMetastore(conf, glueClient), wh);
     
     // Create a client delegate with CatalogId
     hiveConfCatalogId = new HiveConf();
     hiveConfCatalogId.set(GlueMetastoreClientDelegate.CATALOG_ID_CONF, CATALOG_ID);
-    metastoreClientDelegateCatalogId = new GlueMetastoreClientDelegate(hiveConfCatalogId, glueClient, wh);
+    metastoreClientDelegateCatalogId = new GlueMetastoreClientDelegate(hiveConfCatalogId, new DefaultAWSGlueMetastore(hiveConfCatalogId, glueClient), wh);
 
     testDb = getTestDatabase();
     testTbl= getTestTable(testDb.getName());
@@ -163,7 +161,7 @@ public class GlueMetastoreClientDelegateTest {
     HiveConf customConf = new HiveConf();
     customConf.set(GlueMetastoreClientDelegate.CATALOG_ID_CONF, CATALOG_ID);
     customConf.setClass(GlueMetastoreClientDelegate.CUSTOM_EXECUTOR_FACTORY_CONF, TestExecutorServiceFactory.class, ExecutorServiceFactory.class);
-    GlueMetastoreClientDelegate customDelegate = new GlueMetastoreClientDelegate(customConf, mock(AWSGlue.class), mock(Warehouse.class));
+    GlueMetastoreClientDelegate customDelegate = new GlueMetastoreClientDelegate(customConf, mock(AWSGlueMetastore.class), mock(Warehouse.class));
     Object customExecutorService = new TestExecutorServiceFactory().getExecutorService(customConf);
 
     assertEquals("Custom executor service should be used", customDelegate.getExecutorService(), customExecutorService);
@@ -490,7 +488,7 @@ public class GlueMetastoreClientDelegateTest {
     setupMockWarehouseForPath(new Path(testTbl.getStorageDescriptor().getLocation()), true, false);
     when(glueClient.getDatabase(any(GetDatabaseRequest.class)))
       .thenReturn(new GetDatabaseResult().withDatabase(testDb));
-    when(glueClient.createTable(any(CreateTableRequest.class))).thenThrow(AlreadyExistsException.class);
+    when(glueClient.getTable(any(GetTableRequest.class))).thenReturn(new GetTableResult().withTable(testTbl));
     metastoreClientDelegate.createTable(CatalogToHiveConverter.convertTable(testTbl, testTbl.getDatabaseName()));
   }
 
@@ -501,6 +499,7 @@ public class GlueMetastoreClientDelegateTest {
     newHiveTable.setTableName(testTbl.getName());
 
     when(glueClient.getDatabase(any(GetDatabaseRequest.class))).thenReturn(new GetDatabaseResult().withDatabase((testDb)));
+    when(glueClient.getTable(any(GetTableRequest.class))).thenReturn(new GetTableResult().withTable((testTbl)));
     metastoreClientDelegateCatalogId.alterTable(testDb.getName(), testTbl.getName(), newHiveTable, null);
 
     ArgumentCaptor<UpdateTableRequest> captor = ArgumentCaptor.forClass(UpdateTableRequest.class);
@@ -525,6 +524,7 @@ public class GlueMetastoreClientDelegateTest {
     newHiveTable.getParameters().put("EXTERNAL", "TRUE");
 
     when(glueClient.getDatabase(any(GetDatabaseRequest.class))).thenReturn(new GetDatabaseResult().withDatabase((testDb)));
+    when(glueClient.getTable(any(GetTableRequest.class))).thenReturn(new GetTableResult().withTable((testTbl)));
     metastoreClientDelegate.alterTable(testDb.getName(), newHiveTable.getTableName(), newHiveTable, null);
 
     ArgumentCaptor<UpdateTableRequest> captor = ArgumentCaptor.forClass(UpdateTableRequest.class);
@@ -540,6 +540,7 @@ public class GlueMetastoreClientDelegateTest {
     newHiveTable.getParameters().put("EXTERNAL", "FALSE");
 
     when(glueClient.getDatabase(any(GetDatabaseRequest.class))).thenReturn(new GetDatabaseResult().withDatabase((testDb)));
+    when(glueClient.getTable(any(GetTableRequest.class))).thenReturn(new GetTableResult().withTable((testTbl)));
     metastoreClientDelegate.alterTable(testDb.getName(), newHiveTable.getTableName(), newHiveTable, null);
 
     ArgumentCaptor<UpdateTableRequest> captor = ArgumentCaptor.forClass(UpdateTableRequest.class);
@@ -815,11 +816,11 @@ public class GlueMetastoreClientDelegateTest {
     final int numSegments = 2;
     HiveConf conf = new HiveConf(this.conf);
     conf.setInt(GlueMetastoreClientDelegate.NUM_PARTITION_SEGMENTS_CONF, numSegments);
-    GlueMetastoreClientDelegate delegate = new GlueMetastoreClientDelegate(conf, glueClient, wh);
+    GlueMetastoreClientDelegate delegate = new GlueMetastoreClientDelegate(conf, new DefaultAWSGlueMetastore(conf, glueClient), wh);
 
     final Set<List<String>> expectedValues = Sets.newHashSet();
     final List<Partition> partitions = Lists.newArrayList();
-    final int numPartitions = GlueMetastoreClientDelegate.GET_PARTITIONS_MAX_SIZE + 10;
+    final int numPartitions = DefaultAWSGlueMetastore.GET_PARTITIONS_MAX_SIZE + 10;
     final int maxPartitionsToRequest = numPartitions - 1;
 
     for (int i = 1; i <= numPartitions; i++) {
@@ -904,8 +905,8 @@ public class GlueMetastoreClientDelegateTest {
   public void testTooHighGluePartitionSegments() throws MetaException {
     HiveConf conf = new HiveConf(this.conf);
     conf.setInt(GlueMetastoreClientDelegate.NUM_PARTITION_SEGMENTS_CONF,
-           GlueMetastoreClientDelegate.MAX_NUM_PARTITION_SEGMENTS + 1);
-    GlueMetastoreClientDelegate delegate = new GlueMetastoreClientDelegate(conf, glueClient, wh);
+            DefaultAWSGlueMetastore.MAX_NUM_PARTITION_SEGMENTS + 1);
+    GlueMetastoreClientDelegate delegate = new GlueMetastoreClientDelegate(conf, new DefaultAWSGlueMetastore(conf, glueClient), wh);
   }
 
   @Test
