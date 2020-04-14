@@ -70,6 +70,7 @@ Similarly, for Spark, you need to install the client jar in Spark's CLASSPATH an
 Currently, we provide support for caching:
 
 a) Table metadata - Response from Glue's GetTable operation (https://docs.aws.amazon.com/glue/latest/webapi/API_GetTable.html#API_GetTable_ResponseSyntax)
+
 b) Database metadata - Response from Glue's GetDatabase operation (https://docs.aws.amazon.com/glue/latest/webapi/API_GetDatabase.html#API_GetDatabase_ResponseSyntax)
 
 Both these entities have dedicated caches for themselves and can be enabled/tuned individually.
@@ -104,7 +105,7 @@ To enable/tune Database cache:
  		<value>30</value>
 	</property>
 
-NOTE: The caching logic is disabled by default.
+NOTE: The caching logic is disabled by default. Also, there is no one-size-fits-all value for the cache size and ttl; feel free to tune these values as per your use case.
 
 ## License
 

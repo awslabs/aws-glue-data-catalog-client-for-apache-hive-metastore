@@ -1,7 +1,9 @@
 package com.amazonaws.glue.catalog.metastore;
 
 import com.amazonaws.services.glue.model.Database;
+import com.amazonaws.services.glue.model.DatabaseInput;
 import com.amazonaws.services.glue.model.Table;
+import com.amazonaws.services.glue.model.TableInput;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -103,6 +105,26 @@ public class AWSGlueMetastoreCacheDecorator extends AWSGlueMetastoreBaseDecorato
     }
 
     @Override
+    public void updateDatabase(String dbName, DatabaseInput databaseInput) {
+        super.updateDatabase(dbName, databaseInput);
+        if(databaseCacheEnabled) {
+            purgeDatabaseFromCache(dbName);
+        }
+    }
+
+    @Override
+    public void deleteDatabase(String dbName) {
+        super.deleteDatabase(dbName);
+        if(databaseCacheEnabled) {
+            purgeDatabaseFromCache(dbName);
+        }
+    }
+
+    private void purgeDatabaseFromCache(String dbName) {
+        databaseCache.invalidate(dbName);
+    }
+
+    @Override
     public Table getTable(String dbName, String tableName) {
         Table result;
         if(tableCacheEnabled) {
@@ -121,6 +143,28 @@ public class AWSGlueMetastoreCacheDecorator extends AWSGlueMetastoreBaseDecorato
         }
         return result;
     }
+
+    @Override
+    public void updateTable(String dbName, TableInput tableInput) {
+        super.updateTable(dbName, tableInput);
+        if(tableCacheEnabled) {
+            purgeTableFromCache(dbName, tableInput.getName());
+        }
+    }
+
+    @Override
+    public void deleteTable(String dbName, String tableName) {
+        super.deleteTable(dbName, tableName);
+        if(tableCacheEnabled) {
+            purgeTableFromCache(dbName, tableName);
+        }
+    }
+
+    private void purgeTableFromCache(String dbName, String tableName) {
+        TableIdentifier key = new TableIdentifier(dbName, tableName);
+        tableCache.invalidate(key);
+    }
+
 
     static class TableIdentifier {
         private final String dbName;

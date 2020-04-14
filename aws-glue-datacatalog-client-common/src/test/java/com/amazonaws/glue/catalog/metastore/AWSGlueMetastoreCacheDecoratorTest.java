@@ -1,7 +1,9 @@
 package com.amazonaws.glue.catalog.metastore;
 
 import com.amazonaws.services.glue.model.Database;
+import com.amazonaws.services.glue.model.DatabaseInput;
 import com.amazonaws.services.glue.model.Table;
+import com.amazonaws.services.glue.model.TableInput;
 import com.google.common.cache.Cache;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.Before;
@@ -127,6 +129,61 @@ public class AWSGlueMetastoreCacheDecoratorTest {
     }
 
     @Test
+    public void testUpdateDatabaseWhenCacheDisabled() {
+        //disable cache
+        when(hiveConf.getBoolean(AWS_GLUE_DB_CACHE_ENABLE, false)).thenReturn(false);
+        DatabaseInput dbInput = new DatabaseInput();
+        AWSGlueMetastoreCacheDecorator cacheDecorator =
+                new AWSGlueMetastoreCacheDecorator(hiveConf, glueMetastore);
+        doNothing().when(glueMetastore).updateDatabase(DB_NAME, dbInput);
+        cacheDecorator.updateDatabase(DB_NAME, dbInput);
+        assertNull(cacheDecorator.databaseCache);
+        verify(glueMetastore, times(1)).updateDatabase(DB_NAME, dbInput);
+    }
+
+    @Test
+    public void testUpdateDatabaseWhenCacheEnabled() {
+        DatabaseInput dbInput = new DatabaseInput();
+        AWSGlueMetastoreCacheDecorator cacheDecorator =
+                new AWSGlueMetastoreCacheDecorator(hiveConf, glueMetastore);
+        cacheDecorator.databaseCache.put(DB_NAME, new Database());
+        doNothing().when(glueMetastore).updateDatabase(DB_NAME, dbInput);
+
+        cacheDecorator.updateDatabase(DB_NAME, dbInput);
+
+        //db should have been removed from cache
+        assertNull(cacheDecorator.databaseCache.getIfPresent(DB_NAME));
+        verify(glueMetastore, times(1)).updateDatabase(DB_NAME, dbInput);
+    }
+
+    @Test
+    public void testDeleteDatabaseWhenCacheDisabled() {
+        //disable cache
+        when(hiveConf.getBoolean(AWS_GLUE_DB_CACHE_ENABLE, false)).thenReturn(false);
+        AWSGlueMetastoreCacheDecorator cacheDecorator =
+                new AWSGlueMetastoreCacheDecorator(hiveConf, glueMetastore);
+        doNothing().when(glueMetastore).deleteDatabase(DB_NAME);
+        cacheDecorator.deleteDatabase(DB_NAME);
+        assertNull(cacheDecorator.databaseCache);
+        verify(glueMetastore, times(1)).deleteDatabase(DB_NAME);
+    }
+
+    @Test
+    public void testDeleteDatabaseWhenCacheEnabled() {
+        DatabaseInput dbInput = new DatabaseInput();
+        AWSGlueMetastoreCacheDecorator cacheDecorator =
+                new AWSGlueMetastoreCacheDecorator(hiveConf, glueMetastore);
+        cacheDecorator.databaseCache.put(DB_NAME, new Database());
+        doNothing().when(glueMetastore).deleteDatabase(DB_NAME);
+
+        cacheDecorator.deleteDatabase(DB_NAME);
+
+        //db should have been removed from cache
+        assertNull(cacheDecorator.databaseCache.getIfPresent(DB_NAME));
+        verify(glueMetastore, times(1)).deleteDatabase(DB_NAME);
+    }
+
+    @Test
     public void testGetTableWhenCacheDisabled() {
         //disable cache
         when(hiveConf.getBoolean(AWS_GLUE_TABLE_CACHE_ENABLE, false)).thenReturn(false);
@@ -173,6 +230,63 @@ public class AWSGlueMetastoreCacheDecoratorTest {
         assertEquals(table, cacheDecorator.getTable(DB_NAME, TABLE_NAME));
 
         verify(tableCache, times(1)).getIfPresent(TABLE_IDENTIFIER);
+    }
+
+    @Test
+    public void testUpdateTableWhenCacheDisabled() {
+        //disable cache
+        when(hiveConf.getBoolean(AWS_GLUE_TABLE_CACHE_ENABLE, false)).thenReturn(false);
+        TableInput tableInput = new TableInput();
+        AWSGlueMetastoreCacheDecorator cacheDecorator =
+                new AWSGlueMetastoreCacheDecorator(hiveConf, glueMetastore);
+        doNothing().when(glueMetastore).updateTable(TABLE_NAME, tableInput);
+        cacheDecorator.updateTable(TABLE_NAME, tableInput);
+        assertNull(cacheDecorator.tableCache);
+        verify(glueMetastore, times(1)).updateTable(TABLE_NAME, tableInput);
+    }
+
+    @Test
+    public void testUpdateTableWhenCacheEnabled() {
+        TableInput tableInput = new TableInput();
+        tableInput.setName(TABLE_NAME);
+        AWSGlueMetastoreCacheDecorator cacheDecorator =
+                new AWSGlueMetastoreCacheDecorator(hiveConf, glueMetastore);
+
+        cacheDecorator.tableCache.put(TABLE_IDENTIFIER, new Table());
+        doNothing().when(glueMetastore).updateTable(DB_NAME, tableInput);
+
+        cacheDecorator.updateTable(DB_NAME, tableInput);
+
+        //table should have been removed from cache
+        assertNull(cacheDecorator.tableCache.getIfPresent(TABLE_IDENTIFIER));
+        verify(glueMetastore, times(1)).updateTable(DB_NAME, tableInput);
+    }
+
+    @Test
+    public void testDeleteTableWhenCacheDisabled() {
+        //disable cache
+        when(hiveConf.getBoolean(AWS_GLUE_TABLE_CACHE_ENABLE, false)).thenReturn(false);
+        AWSGlueMetastoreCacheDecorator cacheDecorator =
+                new AWSGlueMetastoreCacheDecorator(hiveConf, glueMetastore);
+        doNothing().when(glueMetastore).deleteTable(DB_NAME, TABLE_NAME);
+        cacheDecorator.deleteTable(DB_NAME, TABLE_NAME);
+        assertNull(cacheDecorator.tableCache);
+        verify(glueMetastore, times(1)).deleteTable(DB_NAME, TABLE_NAME);
+    }
+
+    @Test
+    public void testDeleteTableWhenCacheEnabled() {
+        DatabaseInput dbInput = new DatabaseInput();
+        AWSGlueMetastoreCacheDecorator cacheDecorator =
+                new AWSGlueMetastoreCacheDecorator(hiveConf, glueMetastore);
+        cacheDecorator.tableCache.put(TABLE_IDENTIFIER, new Table());
+        doNothing().when(glueMetastore).deleteDatabase(DB_NAME);
+
+        cacheDecorator.deleteTable(DB_NAME, TABLE_NAME);
+
+        //table should have been removed from cache
+        assertNull(cacheDecorator.tableCache.getIfPresent(TABLE_IDENTIFIER));
+        verify(glueMetastore, times(1)).deleteTable(DB_NAME, TABLE_NAME);
     }
 
 }
