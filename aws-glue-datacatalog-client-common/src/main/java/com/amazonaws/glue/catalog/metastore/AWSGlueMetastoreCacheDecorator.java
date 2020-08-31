@@ -19,6 +19,8 @@ import static com.amazonaws.glue.catalog.util.AWSGlueConfig.AWS_GLUE_TABLE_CACHE
 
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.List;
+import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -37,6 +39,8 @@ public class AWSGlueMetastoreCacheDecorator extends AWSGlueMetastoreBaseDecorato
     protected Cache<String, Database> databaseCache;
     @VisibleForTesting
     protected Cache<TableIdentifier, Table> tableCache;
+    @VisibleForTesting
+	protected Cache<String, Database> allDatabasesCache;
 
     public AWSGlueMetastoreCacheDecorator(HiveConf conf, AWSGlueMetastore awsGlueMetastore) {
         super(awsGlueMetastore);
@@ -56,8 +60,13 @@ public class AWSGlueMetastoreCacheDecorator extends AWSGlueMetastoreBaseDecorato
             //initialize database cache
             databaseCache = CacheBuilder.newBuilder().maximumSize(dbCacheSize)
                     .expireAfterWrite(dbCacheTtlMins, TimeUnit.MINUTES).build();
+            
+         // initialize all database cache
+         	allDatabasesCache = CacheBuilder.newBuilder().maximumSize(dbCacheSize)
+         			.expireAfterWrite(dbCacheTtlMins, TimeUnit.MINUTES).build();
         } else {
             databaseCache = null;
+            allDatabasesCache = null;
         }
 
         tableCacheEnabled = conf.getBoolean(AWS_GLUE_TABLE_CACHE_ENABLE, false);
@@ -103,6 +112,27 @@ public class AWSGlueMetastoreCacheDecorator extends AWSGlueMetastoreBaseDecorato
         }
         return result;
     }
+    
+    @Override
+	public List<Database> getAllDatabases() {
+		List<Database> result;
+		if (databaseCacheEnabled) {
+			List<Database> valueFromCache = (List<Database>) allDatabasesCache.asMap().values();
+			if (!valueFromCache.isEmpty()) {
+				logger.info("Cache hit for operation [getAllDatabases]");
+				result = valueFromCache;
+			} else {
+				logger.info("Cache miss for operation [getAllDatabases]");
+				result = super.getAllDatabases();
+				for (Database db : result) {
+					allDatabasesCache.put(db.getName(), db);
+				}
+			}
+		} else {
+			result = super.getAllDatabases();
+		}
+		return result;
+	}
 
     @Override
     public void updateDatabase(String dbName, DatabaseInput databaseInput) {
@@ -122,6 +152,7 @@ public class AWSGlueMetastoreCacheDecorator extends AWSGlueMetastoreBaseDecorato
 
     private void purgeDatabaseFromCache(String dbName) {
         databaseCache.invalidate(dbName);
+        allDatabasesCache.invalidate(dbName);
     }
 
     @Override
