@@ -97,8 +97,8 @@ public class AWSGlueMetastoreCacheDecorator extends AWSGlueMetastoreBaseDecorato
              int partitionCacheTtlMins = conf.getInt(AWS_GLUE_PARTITION_CACHE_TTL_MINS, 0);
              
              //validate config values for size and ttl
-	      validateConfigValueIsGreaterThanZero(AWS_GLUE_TABLE_CACHE_SIZE, partitionCacheSize);
-	      validateConfigValueIsGreaterThanZero(AWS_GLUE_TABLE_CACHE_TTL_MINS, partitionCacheTtlMins);
+	      validateConfigValueIsGreaterThanZero(AWS_GLUE_PARTITION_CACHE_SIZE, partitionCacheSize);
+	      validateConfigValueIsGreaterThanZero(AWS_GLUE_PARTITION_CACHE_TTL_MINS, partitionCacheTtlMins);
 	         
 	      // initialize partition cache - this cache is used to store one partition of a table
 	      partitionCache = CacheBuilder.newBuilder().maximumSize(partitionCacheSize)
@@ -233,6 +233,9 @@ public class AWSGlueMetastoreCacheDecorator extends AWSGlueMetastoreBaseDecorato
 		 * TODO: For mantis job of Merck, calls to this method do not pass any values for expression and 
 		 * max. Partition caching works only when these two parameters come as null values
 		 */
+		/** DEBUG line 
+		*/
+		logger.info(" Partition Cache expression :  [" + expression + "]");
 		if (partitionCacheEnabled && !Optional.fromNullable(expression).isPresent() && !Optional.fromNullable(max).isPresent()) {
 			PartitionCollectionIdentifier key = new PartitionCollectionIdentifier(dbName, tableName);
 			List<Partition> valueFromCache = partitionCollectionCache.getIfPresent(key);
