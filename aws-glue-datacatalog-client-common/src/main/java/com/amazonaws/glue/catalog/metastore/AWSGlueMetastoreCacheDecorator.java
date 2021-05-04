@@ -234,9 +234,11 @@ public class AWSGlueMetastoreCacheDecorator extends AWSGlueMetastoreBaseDecorato
 		 * max. Partition caching works only when these two parameters come as null values
 		 */
 		/** DEBUG line 
-		*/
+		
 		logger.info(" Partition Cache expression :  [" + expression + "]");
 		if (partitionCacheEnabled && !Optional.fromNullable(expression).isPresent() && !Optional.fromNullable(max).isPresent()) {
+		*/
+		if (partitionCacheEnabled && expression=="null") {
 			PartitionCollectionIdentifier key = new PartitionCollectionIdentifier(dbName, tableName);
 			List<Partition> valueFromCache = partitionCollectionCache.getIfPresent(key);
 			if (valueFromCache != null) {
