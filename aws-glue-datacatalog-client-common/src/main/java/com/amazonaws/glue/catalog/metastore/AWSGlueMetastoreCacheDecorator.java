@@ -238,7 +238,8 @@ public class AWSGlueMetastoreCacheDecorator extends AWSGlueMetastoreBaseDecorato
 		logger.info(" Partition Cache expression :  [" + expression + "]");
 		if (partitionCacheEnabled && !Optional.fromNullable(expression).isPresent() && !Optional.fromNullable(max).isPresent()) {
 		*/
-		if (partitionCacheEnabled && expression=="null") {
+		logger.info(" Partition Cache expression :  [" + expression + "] before the IF!");
+		if (partitionCacheEnabled && expression.equalsIgnoreCase("null")) {
 			logger.info(" Partition Cache expression :  [" + expression + "] in the IF!");
 			PartitionCollectionIdentifier key = new PartitionCollectionIdentifier(dbName, tableName);
 			List<Partition> valueFromCache = partitionCollectionCache.getIfPresent(key);
