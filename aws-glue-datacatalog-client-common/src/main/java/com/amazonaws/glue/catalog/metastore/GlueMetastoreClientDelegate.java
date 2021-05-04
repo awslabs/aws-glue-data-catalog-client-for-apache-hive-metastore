@@ -87,6 +87,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.regex.Pattern;
 
+import static com.amazonaws.glue.catalog.util.AWSGlueConfig.AWS_GLUE_DISABLE_UDF;
 import static com.amazonaws.glue.catalog.converters.ConverterUtils.stringToCatalogTable;
 import static com.amazonaws.glue.catalog.util.MetastoreClientUtils.deepCopyMap;
 import static com.amazonaws.glue.catalog.util.MetastoreClientUtils.isExternalTable;
@@ -1489,7 +1490,11 @@ public class GlueMetastoreClientDelegate {
    * @throws TException
    */
   public List<String> getFunctions(String dbName, String pattern) throws TException {
-    try {
+	  if (conf.getBoolean(AWS_GLUE_DISABLE_UDF, false)) {
+	     logger.warn("Config aws.glue.disable-udf is enabled, not fetching UDF's.");
+	     return new ArrayList<>();
+	  }
+	  try {
       List<String> functionNames = Lists.newArrayList();
       List<UserDefinedFunction> functions =
               glueMetastore.getUserDefinedFunctions(dbName, pattern);
