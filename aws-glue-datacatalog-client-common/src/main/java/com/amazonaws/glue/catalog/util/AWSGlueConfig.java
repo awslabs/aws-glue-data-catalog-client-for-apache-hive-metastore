@@ -32,4 +32,9 @@ public final class AWSGlueConfig {
   public static final String AWS_GLUE_TABLE_CACHE_ENABLE = "aws.glue.cache.table.enable";
   public static final String AWS_GLUE_TABLE_CACHE_SIZE = "aws.glue.cache.table.size";
   public static final String AWS_GLUE_TABLE_CACHE_TTL_MINS = "aws.glue.cache.table.ttl-mins";
+  
+  public static final String AWS_GLUE_PARTITION_CACHE_ENABLE = "aws.glue.cache.partition.enable";
+  public static final String AWS_GLUE_PARTITION_CACHE_SIZE = "aws.glue.cache.partition.size";
+  public static final String AWS_GLUE_PARTITION_CACHE_TTL_MINS = "aws.glue.cache.partition.ttl-mins";
+
 }
