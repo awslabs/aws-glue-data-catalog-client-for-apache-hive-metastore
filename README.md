@@ -13,19 +13,24 @@ Obtain a copy of Hive from GitHub at https://github.com/apache/hive.
 
 	git clone https://github.com/apache/hive.git
 
-To build the Hive client, you need to first apply this [patch](https://issues.apache.org/jira/secure/attachment/12958418/HIVE-12679.branch-2.3.patch).  Download this patch and move it to your local Hive git repository you created above.  Apply the patch and build Hive.
+To build the Hive client, you need to first apply this [patch](https://issues.apache.org/jira/secure/attachment/12958418/HIVE-12679.branch-2.3.patch).  
+Navigate to your local Hive git repository you created above and Download the patch with the following command:
 
-	git checkout branch-2.3
+	curl https://issues.apache.org/jira/secure/attachment/12958418/HIVE-12679.branch-2.3.patch > HIVE-12679.branch-2.3.patch
+ 
+ Apply the patch and build Hive.
+
+	git checkout tags/rel/release-2.3.4 -b rel-2.3.4
 	patch -p0 <HIVE-12679.branch-2.3.patch
 	mvn clean install -DskipTests
-
-If you are using the default Maven settings, this will install a new version of patched Hive in ~/.m2/repositories/, i.e. ~/.m2/repository/org/apache/hive/hive/2.3.4-SNAPSHOT/.  The specific version of Hive will depend on the current version in pom.xml.  Presently, the latest version in the 2.3 branch (branch-2.3) is "2.3.4-SNAPSHOT".  You will need this version to build the client.
+	
+If you are using the default Maven settings, this will install a new version of patched Hive in ~/.m2/repositories/, i.e. ~/.m2/repository/org/apache/hive/hive/2.3.4/.  Currently, this is using the specific 2.3.4 version of Hive as set in pom.xml.  Presently, this is not the latest version in the 2.3 branch. Some modification will need to be done to this version of the code to build the client for later Hive versions.
 
 ## Building the Hive Client
 
-Once you have successfully patched and installed Hive locally, move into the AWS Glue Data Catalog Client repository and update the following property in pom.xml.
+Once you have successfully patched and installed Hive locally, move into the AWS Glue Data Catalog Client repository and check the following property in pom.xml.
 
-	<hive2.version>2.3.4-SNAPSHOT</hive2.version>
+	<hive2.version>2.3.4</hive2.version>
 
 You are now ready to build the Hive client.
 
@@ -34,7 +39,13 @@ You are now ready to build the Hive client.
 
 ## Building the Spark Client
 
-As Spark uses a fork of Hive based off the 1.2.1 branch, in order to build the Spark client, you need Hive 1.2 built with this [patch](https://issues.apache.org/jira/secure/attachment/12958417/HIVE-12679.branch-1.2.patch).  Unlike Hive 2.x, Hive 1.x must be built with a Maven profile set to either "hadoop-1" or "hadoop-2".
+As Spark uses a fork of Hive based off the 1.2.1 branch, in order to build the Spark client, you need Hive 1.2 built with this [patch](https://issues.apache.org/jira/secure/attachment/12958417/HIVE-12679.branch-1.2.patch).  
+
+Download the patch with the following command:
+
+	curl https://issues.apache.org/jira/secure/attachment/12958417/HIVE-12679.branch-1.2.patch > HIVE-12679.branch-1.2.patch
+
+Unlike Hive 2.x, Hive 1.x must be built with a Maven profile set to either "hadoop-1" or "hadoop-2".
 
 	cd <your local Hive repo>
 	git checkout branch-1.2
@@ -73,7 +84,9 @@ a) Table metadata - Response from Glue's GetTable operation (https://docs.aws.am
 
 b) Database metadata - Response from Glue's GetDatabase operation (https://docs.aws.amazon.com/glue/latest/webapi/API_GetDatabase.html#API_GetDatabase_ResponseSyntax)
 
-Both these entities have dedicated caches for themselves and can be enabled/tuned individually.
+c) Partition metadata - Response from Glue's GetPartition operation (https://docs.aws.amazon.com/glue/latest/webapi/API_GetPartition.html#API_GetPartition_ResponseSyntax) and GetPartitions operation (https://docs.aws.amazon.com/glue/latest/webapi/API_GetPartitions.html#API_GetPartitions_ResponseSyntax)
+
+All these entities have dedicated caches for themselves and can be enabled/tuned individually.
 
 To enable/tune Table cache, use the following properties in your hive/spark configuration file:
 
@@ -102,6 +115,21 @@ To enable/tune Database cache:
 	</property>
 	<property>
  		<name>aws.glue.cache.db.ttl-mins</name>
+ 		<value>30</value>
+	</property>
+
+To enable/tune Partition cache:
+
+	<property>
+ 		<name>aws.glue.cache.partition.enable</name>
+ 		<value>true</value>
+	</property>
+	<property>
+ 		<name>aws.glue.cache.partition.size</name>
+ 		<value>1000</value>
+	</property>
+	<property>
+ 		<name>aws.glue.cache.partition.ttl-mins</name>
  		<value>30</value>
 	</property>
 

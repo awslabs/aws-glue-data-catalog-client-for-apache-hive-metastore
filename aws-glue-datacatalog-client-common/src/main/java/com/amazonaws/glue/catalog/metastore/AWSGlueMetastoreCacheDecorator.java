@@ -233,14 +233,8 @@ public class AWSGlueMetastoreCacheDecorator extends AWSGlueMetastoreBaseDecorato
 		 * TODO: For mantis job of Merck, calls to this method do not pass any values for expression and 
 		 * max. Partition caching works only when these two parameters come as null values
 		 */
-		/** DEBUG line 
-		
-		logger.info(" Partition Cache expression :  [" + expression + "]");
-		if (partitionCacheEnabled && !Optional.fromNullable(expression).isPresent() && !Optional.fromNullable(max).isPresent()) {
-		*/
-		logger.info(" Partition Cache expression :  [" + expression + "] before the IF!");
+		logger.info(" getPartitions attributes :  [" + dbName+ ", " + tableName+ ", " + expression + ", "  + max +  "]");
 		if (partitionCacheEnabled) {
-			logger.info(" Partition Cache expression :  [" + expression + "] in the IF!");
 			PartitionCollectionIdentifier key = new PartitionCollectionIdentifier(dbName, tableName);
 			List<Partition> valueFromCache = partitionCollectionCache.getIfPresent(key);
 			if (valueFromCache != null) {
