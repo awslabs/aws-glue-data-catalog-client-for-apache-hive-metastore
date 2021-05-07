@@ -76,6 +76,10 @@ You need to ensure that the AWS Glue Data Catalog Client jar is in Hive's CLASSP
 
 Similarly, for Spark, you need to install the client jar in Spark's CLASSPATH and create or update Spark's own hive-site.xml to add the above property.  On Amazon EMR, this is set in /usr/lib/spark/conf/hive-site.xml.  You can also find the location of the Spark client jar in /usr/lib/spark/conf/spark-defaults.conf.
 
+## Experiencing high latency with the Catalog
+
+When working with Spark SQL there are cases in which higher latency might be experience due to the high number of API calls submitted to the AWS Glue Catalog. To ameliorate this latency, the Glue Catalog client has a client-side caching feature. There are separately configurable caches for the getDatabase, getTable and getPartitions operations. 
+
 ## Enabling client side caching for catalog
 
 Currently, we provide support for caching:
@@ -132,6 +136,22 @@ To enable/tune Partition cache:
  		<name>aws.glue.cache.partition.ttl-mins</name>
  		<value>30</value>
 	</property>
+
+
+Same configuration can be achieve during the spark context creation using the following values:
+
+spark.hadoop.aws.glue.cache.db.enable true
+spark.hadoop.aws.glue.cache.db.size 1000
+spark.hadoop.aws.glue.cache.db.ttl-mins 30
+
+spark.hadoop.aws.glue.cache.table.enable true
+spark.hadoop.aws.glue.cache.table.size 1000
+spark.hadoop.aws.glue.cache.table.ttl-mins 30
+
+spark.hadoop.aws.glue.cache.partition.enable true
+spark.hadoop.aws.glue.cache.partition.size 1000
+spark.hadoop.aws.glue.cache.partition.ttl-mins 30
+
 
 NOTE: The caching logic is disabled by default. Also, there is no one-size-fits-all value for the cache size and ttl; feel free to tune these values as per your use case.
 

@@ -262,8 +262,9 @@ public class AWSGlueMetastoreCacheDecorator extends AWSGlueMetastoreBaseDecorato
 	
 	@Override
 	public void deletePartition(String dbName, String tableName, List<String> partitionValues) {
+		logger.info(" getPartitions attributes :  [" + dbName+ ", " + tableName+ ", " + partitionValues + "]");
 		super.deletePartition(dbName, tableName, partitionValues);
-        if(tableCacheEnabled) {
+        if(partitionCacheEnabled) {
             purgePartitionsFromCache(dbName, tableName, partitionValues);
         }
 	}
@@ -276,8 +277,7 @@ public class AWSGlueMetastoreCacheDecorator extends AWSGlueMetastoreBaseDecorato
 	 */
 	private void purgePartitionsFromCache(String dbName, String tableName, List<String> partitionValues) {
 		PartitionIdentifier key = new PartitionIdentifier(dbName, tableName, partitionValues.stream().collect(Collectors.joining("-")));
-        partitionCache.invalidate(key);
-        
+		partitionCache.invalidate(key);
         PartitionCollectionIdentifier pcI = new PartitionCollectionIdentifier(dbName, tableName);
         partitionCollectionCache.invalidate(pcI);
     }
