@@ -1,4 +1,4 @@
-## AWS Glue Data Catalog Client for Apache Hive Metastore
+# AWS Glue Data Catalog Client for Apache Hive Metastore
 The AWS Glue Data Catalog is a fully managed, Apache Hive Metastore compatible, metadata repository. Customers can use the Data Catalog as a central repository to store structural and operational metadata for their data.
 
 AWS Glue provides out-of-box integration with Amazon EMR that enables customers to use the AWS Glue Data Catalog as an external Hive Metastore. To learn more, visit our [documentation](https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-hive-metastore-glue.html).
@@ -88,7 +88,7 @@ a) Table metadata - Response from Glue's GetTable operation (https://docs.aws.am
 
 b) Database metadata - Response from Glue's GetDatabase operation (https://docs.aws.amazon.com/glue/latest/webapi/API_GetDatabase.html#API_GetDatabase_ResponseSyntax)
 
-c) Partition metadata - Response from Glue's GetPartition operation (https://docs.aws.amazon.com/glue/latest/webapi/API_GetPartition.html#API_GetPartition_ResponseSyntax) and GetPartitions operation (https://docs.aws.amazon.com/glue/latest/webapi/API_GetPartitions.html#API_GetPartitions_ResponseSyntax)
+c) Partition metadata - Response from Glue's GetPartition operation (https://docs.aws.amazon.com/glue/latest/webapi/API_GetPartition.html#API_GetPartition_ResponseSyntax) 
 
 All these entities have dedicated caches for themselves and can be enabled/tuned individually.
 
