@@ -9,6 +9,10 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Arrays;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -32,6 +36,7 @@ public class AWSGlueMetastoreCacheDecoratorTest {
     private AWSGlueMetastore glueMetastore;
     private HiveConf hiveConf;
 
+    private static final String DATABASES_CACHE_KEY = "*";
     private static final String DB_NAME = "db";
     private static final String TABLE_NAME = "table";
     private static final AWSGlueMetastoreCacheDecorator.TableIdentifier TABLE_IDENTIFIER =
@@ -47,7 +52,6 @@ public class AWSGlueMetastoreCacheDecoratorTest {
         when(hiveConf.getInt(AWS_GLUE_TABLE_CACHE_TTL_MINS, 0)).thenReturn(100);
         when(hiveConf.getInt(AWS_GLUE_DB_CACHE_SIZE, 0)).thenReturn(100);
         when(hiveConf.getInt(AWS_GLUE_DB_CACHE_TTL_MINS, 0)).thenReturn(100);
-
     }
 
     @Test(expected = NullPointerException.class)
@@ -75,6 +79,18 @@ public class AWSGlueMetastoreCacheDecoratorTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testConstructorWithInvalidDbCacheTtl() {
+        when(hiveConf.getInt(AWS_GLUE_DB_CACHE_TTL_MINS, 0)).thenReturn(0);
+        new AWSGlueMetastoreCacheDecorator(hiveConf, glueMetastore);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testConstructorWithInvalidDbsCacheSize() {
+        when(hiveConf.getInt(AWS_GLUE_DB_CACHE_SIZE, 0)).thenReturn(0);
+        new AWSGlueMetastoreCacheDecorator(hiveConf, glueMetastore);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testConstructorWithInvalidDbsCacheTtl() {
         when(hiveConf.getInt(AWS_GLUE_DB_CACHE_TTL_MINS, 0)).thenReturn(0);
         new AWSGlueMetastoreCacheDecorator(hiveConf, glueMetastore);
     }
@@ -138,6 +154,7 @@ public class AWSGlueMetastoreCacheDecoratorTest {
         doNothing().when(glueMetastore).updateDatabase(DB_NAME, dbInput);
         cacheDecorator.updateDatabase(DB_NAME, dbInput);
         assertNull(cacheDecorator.databaseCache);
+        assertNull(cacheDecorator.databasesCache);
         verify(glueMetastore, times(1)).updateDatabase(DB_NAME, dbInput);
     }
 
@@ -154,6 +171,7 @@ public class AWSGlueMetastoreCacheDecoratorTest {
         //db should have been removed from cache
         assertNull(cacheDecorator.databaseCache.getIfPresent(DB_NAME));
         verify(glueMetastore, times(1)).updateDatabase(DB_NAME, dbInput);
+        assertEquals(0L, cacheDecorator.databasesCache.size());
     }
 
     @Test
@@ -165,22 +183,148 @@ public class AWSGlueMetastoreCacheDecoratorTest {
         doNothing().when(glueMetastore).deleteDatabase(DB_NAME);
         cacheDecorator.deleteDatabase(DB_NAME);
         assertNull(cacheDecorator.databaseCache);
+        assertNull(cacheDecorator.databasesCache);
         verify(glueMetastore, times(1)).deleteDatabase(DB_NAME);
     }
 
     @Test
     public void testDeleteDatabaseWhenCacheEnabled() {
         DatabaseInput dbInput = new DatabaseInput();
+        List<String> names = new ArrayList<>();
         AWSGlueMetastoreCacheDecorator cacheDecorator =
                 new AWSGlueMetastoreCacheDecorator(hiveConf, glueMetastore);
         cacheDecorator.databaseCache.put(DB_NAME, new Database());
+        names.add(DB_NAME);
+        cacheDecorator.databasesCache.put(DATABASES_CACHE_KEY, names);
         doNothing().when(glueMetastore).deleteDatabase(DB_NAME);
 
         cacheDecorator.deleteDatabase(DB_NAME);
 
         //db should have been removed from cache
         assertNull(cacheDecorator.databaseCache.getIfPresent(DB_NAME));
+        assertNull(cacheDecorator.databasesCache.getIfPresent(DB_NAME));
         verify(glueMetastore, times(1)).deleteDatabase(DB_NAME);
+    }
+
+    @Test
+    public void testCreateDatabaseWhenCacheDisabled() {
+        //disable cache
+        when(hiveConf.getBoolean(AWS_GLUE_DB_CACHE_ENABLE, false)).thenReturn(false);
+        AWSGlueMetastoreCacheDecorator cacheDecorator =
+                new AWSGlueMetastoreCacheDecorator(hiveConf, glueMetastore);
+        DatabaseInput dbInput = new DatabaseInput();
+        doNothing().when(glueMetastore).createDatabase(dbInput);
+        cacheDecorator.createDatabase(dbInput);
+        assertNull(cacheDecorator.databasesCache);
+        verify(glueMetastore, times(1)).createDatabase(dbInput);
+    }
+
+    @Test
+    public void testCreateDatabaseWhenCacheEnabled() {
+        DatabaseInput dbInput = new DatabaseInput();
+        List<String> names = new ArrayList<>();
+        AWSGlueMetastoreCacheDecorator cacheDecorator =
+                new AWSGlueMetastoreCacheDecorator(hiveConf, glueMetastore);
+        cacheDecorator.databasesCache.put(DATABASES_CACHE_KEY, names);
+        doNothing().when(glueMetastore).createDatabase(dbInput);
+
+        cacheDecorator.createDatabase(dbInput);
+
+        verify(glueMetastore, times(1)).createDatabase(dbInput);
+        assertEquals(cacheDecorator.databasesCache.size(), 0L);
+    }
+
+    @Test
+    public void testGetAllDatabasesWhenCacheDisabled() {
+        //disable cache
+        when(hiveConf.getBoolean(AWS_GLUE_DB_CACHE_ENABLE, false)).thenReturn(false);
+        Database db1 = new Database();
+        Database db2 = new Database();
+        List<Database> dbs = Arrays.asList(db1, db2);
+        AWSGlueMetastoreCacheDecorator cacheDecorator =
+                new AWSGlueMetastoreCacheDecorator(hiveConf, glueMetastore);
+        when(glueMetastore.getAllDatabases()).thenReturn(dbs);
+        assertEquals(dbs, cacheDecorator.getAllDatabases());
+        assertNull(cacheDecorator.databasesCache);
+        verify(glueMetastore, times(1)).getAllDatabases();
+    }
+
+    @Test
+    public void testGetAllDatabasesWhenCacheEnabledAndCacheMiss() {
+        Database db1 = new Database();
+        List<Database> dbs = Arrays.asList(db1);
+        List<String> dbNames = Arrays.asList(db1.getName());
+        AWSGlueMetastoreCacheDecorator cacheDecorator =
+                new AWSGlueMetastoreCacheDecorator(hiveConf, glueMetastore);
+        assertNotNull(cacheDecorator.databasesCache);
+        assertNotNull(cacheDecorator.databaseCache);
+        Cache dbsCache = mock(Cache.class);
+        Cache dbCache = mock(Cache.class);
+        cacheDecorator.databasesCache = dbsCache;
+        cacheDecorator.databaseCache = dbCache;
+
+        when(dbsCache.size()).thenReturn(0L);
+        when(glueMetastore.getAllDatabases()).thenReturn(dbs);
+
+        assertEquals(dbs, cacheDecorator.getAllDatabases());
+
+        verify(glueMetastore, times(1)).getAllDatabases();
+        verify(dbsCache, times(1)).size();
+        verify(dbsCache, times(1)).put(DATABASES_CACHE_KEY, dbNames);
+    }
+
+    @Test
+    public void testGetAllDatabasesWhenCacheEnabledAndCacheMiss2() {
+        Database db1 = new Database();
+        Database db2 = new Database();
+        List<Database> dbs = Arrays.asList(db1, db2);
+        List<String> dbNames = Arrays.asList(db1.getName(), db2.getName());
+        AWSGlueMetastoreCacheDecorator cacheDecorator =
+                new AWSGlueMetastoreCacheDecorator(hiveConf, glueMetastore);
+        assertNotNull(cacheDecorator.databasesCache);
+        assertNotNull(cacheDecorator.databaseCache);
+        Cache dbsCache = mock(Cache.class);
+        Cache dbCache = mock(Cache.class);
+        cacheDecorator.databasesCache = dbsCache;
+        cacheDecorator.databaseCache = dbCache;
+
+        when(dbsCache.size()).thenReturn(1L);
+        when(dbsCache.getIfPresent(DATABASES_CACHE_KEY)).thenReturn(dbNames);
+        when(dbCache.getIfPresent(db1.getName())).thenReturn(db1);
+        when(dbCache.getIfPresent(db2.getName())).thenReturn(null);
+        when(glueMetastore.getAllDatabases()).thenReturn(dbs);
+
+        assertEquals(dbs, cacheDecorator.getAllDatabases());
+
+        verify(glueMetastore, times(1)).getAllDatabases();
+        verify(dbsCache, times(1)).size();
+        verify(dbsCache, times(1)).put(DATABASES_CACHE_KEY, dbNames);
+    }
+
+    @Test
+    public void testGetAllDatabasesWhenCacheEnabledAndCacheHit() {
+        Database db1 = new Database();
+        Database db2 = new Database();
+        List<Database> dbs = Arrays.asList(db1, db2);
+        List<String> dbNames = Arrays.asList(db1.getName(), db2.getName());
+
+
+        AWSGlueMetastoreCacheDecorator cacheDecorator =
+                new AWSGlueMetastoreCacheDecorator(hiveConf, glueMetastore);
+        assertNotNull(cacheDecorator.databasesCache);
+        Cache dbsCache = mock(Cache.class);
+        Cache dbCache = mock(Cache.class);
+        cacheDecorator.databasesCache = dbsCache;
+        cacheDecorator.databaseCache = dbCache;
+
+        when(dbsCache.size()).thenReturn(2L);
+        when(dbsCache.getIfPresent(DATABASES_CACHE_KEY)).thenReturn(dbNames);
+        when(dbCache.getIfPresent(db1.getName())).thenReturn(db1);
+        when(dbCache.getIfPresent(db2.getName())).thenReturn(db2);
+
+        assertEquals(dbs, cacheDecorator.getAllDatabases());
+
+        verify(dbsCache, times(1)).size();
     }
 
     @Test

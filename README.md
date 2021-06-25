@@ -73,7 +73,9 @@ a) Table metadata - Response from Glue's GetTable operation (https://docs.aws.am
 
 b) Database metadata - Response from Glue's GetDatabase operation (https://docs.aws.amazon.com/glue/latest/webapi/API_GetDatabase.html#API_GetDatabase_ResponseSyntax)
 
-Both these entities have dedicated caches for themselves and can be enabled/tuned individually.
+c) Databases metadata - Response from Glue's GetDatabases operation (https://docs.aws.amazon.com/glue/latest/webapi/API_GetDatabases.html#API_GetDatabases_ResponseSyntax), the configs for Databases cache are the sames ones as Database.
+
+Both these entities(Table/Database) have dedicated caches for themselves and can be enabled/tuned individually.
 
 To enable/tune Table cache, use the following properties in your hive/spark configuration file:
 
