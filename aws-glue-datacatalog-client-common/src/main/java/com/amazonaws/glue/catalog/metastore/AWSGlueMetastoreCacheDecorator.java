@@ -16,8 +16,14 @@ import static com.amazonaws.glue.catalog.util.AWSGlueConfig.AWS_GLUE_DB_CACHE_TT
 import static com.amazonaws.glue.catalog.util.AWSGlueConfig.AWS_GLUE_TABLE_CACHE_ENABLE;
 import static com.amazonaws.glue.catalog.util.AWSGlueConfig.AWS_GLUE_TABLE_CACHE_SIZE;
 import static com.amazonaws.glue.catalog.util.AWSGlueConfig.AWS_GLUE_TABLE_CACHE_TTL_MINS;
+import static com.amazonaws.glue.catalog.util.AWSGlueConfig.AWS_GLUE_DBS_CACHE_ENABLE;
+import static com.amazonaws.glue.catalog.util.AWSGlueConfig.AWS_GLUE_DBS_CACHE_SIZE;
+import static com.amazonaws.glue.catalog.util.AWSGlueConfig.AWS_GLUE_DBS_CACHE_TTL_MINS;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -33,10 +39,14 @@ public class AWSGlueMetastoreCacheDecorator extends AWSGlueMetastoreBaseDecorato
 
     private final boolean tableCacheEnabled;
 
+    private final boolean databasesCacheEnabled;
+
     @VisibleForTesting
     protected Cache<String, Database> databaseCache;
     @VisibleForTesting
     protected Cache<TableIdentifier, Table> tableCache;
+    @VisibleForTesting
+    protected Cache<String, Database> databasesCache;
 
     public AWSGlueMetastoreCacheDecorator(HiveConf conf, AWSGlueMetastore awsGlueMetastore) {
         super(awsGlueMetastore);
@@ -58,6 +68,22 @@ public class AWSGlueMetastoreCacheDecorator extends AWSGlueMetastoreBaseDecorato
                     .expireAfterWrite(dbCacheTtlMins, TimeUnit.MINUTES).build();
         } else {
             databaseCache = null;
+        }
+
+        databasesCacheEnabled = conf.getBoolean(AWS_GLUE_DBS_CACHE_ENABLE, false);
+        if(databasesCacheEnabled) {
+            int dbsCacheSize = conf.getInt(AWS_GLUE_DBS_CACHE_SIZE, 0);
+            int dbsCacheTtlMins = conf.getInt(AWS_GLUE_DBS_CACHE_TTL_MINS, 0);
+
+            //validate config values for size and ttl
+            validateConfigValueIsGreaterThanZero(AWS_GLUE_DBS_CACHE_SIZE, dbsCacheSize);
+            validateConfigValueIsGreaterThanZero(AWS_GLUE_DBS_CACHE_TTL_MINS, dbsCacheTtlMins);
+
+            //initialize database cache
+            databasesCache = CacheBuilder.newBuilder().maximumSize(dbsCacheSize)
+                    .expireAfterWrite(dbsCacheTtlMins, TimeUnit.MINUTES).build();
+        } else {
+            databasesCache = null;
         }
 
         tableCacheEnabled = conf.getBoolean(AWS_GLUE_TABLE_CACHE_ENABLE, false);
@@ -105,10 +131,44 @@ public class AWSGlueMetastoreCacheDecorator extends AWSGlueMetastoreBaseDecorato
     }
 
     @Override
+    public List<Database> getAllDatabases() {
+        List<Database> allDatabases;
+        ConcurrentMap<String, Database> collection;
+        if (databasesCacheEnabled) {
+            Long size = databasesCache.size();
+            if (size.compareTo(0L) > 0) {
+                logger.info("Get all databases from cache");
+                collection = databasesCache.asMap();
+                allDatabases = new ArrayList<>(collection.values());
+            } else {
+                logger.info("Cache miss for getAllDatabases");
+                allDatabases = super.getAllDatabases();
+                for (Database db : allDatabases) {
+                    databasesCache.put(db.getName(), db);
+                }
+            }
+        } else {
+            allDatabases = super.getAllDatabases();
+        }
+        return allDatabases;
+    }
+
+    @Override
+    public void createDatabase(DatabaseInput databaseInput) {
+       super.createDatabase(databaseInput);
+       if(databasesCacheEnabled){
+           databasesCache.invalidateAll();
+       }
+    }
+
+    @Override
     public void updateDatabase(String dbName, DatabaseInput databaseInput) {
         super.updateDatabase(dbName, databaseInput);
         if(databaseCacheEnabled) {
             purgeDatabaseFromCache(dbName);
+        }
+        if(databasesCacheEnabled) {
+            databasesCache.invalidateAll();
         }
     }
 
@@ -117,6 +177,9 @@ public class AWSGlueMetastoreCacheDecorator extends AWSGlueMetastoreBaseDecorato
         super.deleteDatabase(dbName);
         if(databaseCacheEnabled) {
             purgeDatabaseFromCache(dbName);
+        }
+        if(databasesCacheEnabled) {
+            databasesCache.invalidate(dbName);
         }
     }
 
