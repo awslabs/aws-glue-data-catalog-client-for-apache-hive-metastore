@@ -1,4 +1,4 @@
-## AWS Glue Data Catalog Client for Apache Hive Metastore
+# AWS Glue Data Catalog Client for Apache Hive Metastore
 The AWS Glue Data Catalog is a fully managed, Apache Hive Metastore compatible, metadata repository. Customers can use the Data Catalog as a central repository to store structural and operational metadata for their data.
 
 AWS Glue provides out-of-box integration with Amazon EMR that enables customers to use the AWS Glue Data Catalog as an external Hive Metastore. To learn more, visit our [documentation](https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-hive-metastore-glue.html).
@@ -13,19 +13,24 @@ Obtain a copy of Hive from GitHub at https://github.com/apache/hive.
 
 	git clone https://github.com/apache/hive.git
 
-To build the Hive client, you need to first apply this [patch](https://issues.apache.org/jira/secure/attachment/12958418/HIVE-12679.branch-2.3.patch).  Download this patch and move it to your local Hive git repository you created above.  Apply the patch and build Hive.
+To build the Hive client, you need to first apply this [patch](https://issues.apache.org/jira/secure/attachment/12958418/HIVE-12679.branch-2.3.patch).  
+Navigate to your local Hive git repository you created above and Download the patch with the following command:
 
-	git checkout branch-2.3
+	curl https://issues.apache.org/jira/secure/attachment/12958418/HIVE-12679.branch-2.3.patch > HIVE-12679.branch-2.3.patch
+ 
+ Apply the patch and build Hive.
+
+	git checkout tags/rel/release-2.3.4 -b rel-2.3.4
 	patch -p0 <HIVE-12679.branch-2.3.patch
 	mvn clean install -DskipTests
-
-If you are using the default Maven settings, this will install a new version of patched Hive in ~/.m2/repositories/, i.e. ~/.m2/repository/org/apache/hive/hive/2.3.4-SNAPSHOT/.  The specific version of Hive will depend on the current version in pom.xml.  Presently, the latest version in the 2.3 branch (branch-2.3) is "2.3.4-SNAPSHOT".  You will need this version to build the client.
+	
+If you are using the default Maven settings, this will install a new version of patched Hive in ~/.m2/repositories/, i.e. ~/.m2/repository/org/apache/hive/hive/2.3.4/.  Currently, this is using the specific 2.3.4 version of Hive as set in pom.xml.  Presently, this is not the latest version in the 2.3 branch. Some modification will need to be done to this version of the code to build the client for later Hive versions.
 
 ## Building the Hive Client
 
-Once you have successfully patched and installed Hive locally, move into the AWS Glue Data Catalog Client repository and update the following property in pom.xml.
+Once you have successfully patched and installed Hive locally, move into the AWS Glue Data Catalog Client repository and check the following property in pom.xml.
 
-	<hive2.version>2.3.4-SNAPSHOT</hive2.version>
+	<hive2.version>2.3.4</hive2.version>
 
 You are now ready to build the Hive client.
 
@@ -34,7 +39,13 @@ You are now ready to build the Hive client.
 
 ## Building the Spark Client
 
-As Spark uses a fork of Hive based off the 1.2.1 branch, in order to build the Spark client, you need Hive 1.2 built with this [patch](https://issues.apache.org/jira/secure/attachment/12958417/HIVE-12679.branch-1.2.patch).  Unlike Hive 2.x, Hive 1.x must be built with a Maven profile set to either "hadoop-1" or "hadoop-2".
+As Spark uses a fork of Hive based off the 1.2.1 branch, in order to build the Spark client, you need Hive 1.2 built with this [patch](https://issues.apache.org/jira/secure/attachment/12958417/HIVE-12679.branch-1.2.patch).  
+
+Download the patch with the following command:
+
+	curl https://issues.apache.org/jira/secure/attachment/12958417/HIVE-12679.branch-1.2.patch > HIVE-12679.branch-1.2.patch
+
+Unlike Hive 2.x, Hive 1.x must be built with a Maven profile set to either "hadoop-1" or "hadoop-2".
 
 	cd <your local Hive repo>
 	git checkout branch-1.2
@@ -65,6 +76,10 @@ You need to ensure that the AWS Glue Data Catalog Client jar is in Hive's CLASSP
 
 Similarly, for Spark, you need to install the client jar in Spark's CLASSPATH and create or update Spark's own hive-site.xml to add the above property.  On Amazon EMR, this is set in /usr/lib/spark/conf/hive-site.xml.  You can also find the location of the Spark client jar in /usr/lib/spark/conf/spark-defaults.conf.
 
+## Experiencing high latency with the Catalog
+
+When working with Spark SQL there are cases in which higher latency might be experience due to the high number of API calls submitted to the AWS Glue Catalog. To ameliorate this latency, the Glue Catalog client has a client-side caching feature. There are separately configurable caches for the getDatabase, getTable and getPartitions operations. 
+
 ## Enabling client side caching for catalog
 
 Currently, we provide support for caching:
@@ -73,7 +88,9 @@ a) Table metadata - Response from Glue's GetTable operation (https://docs.aws.am
 
 b) Database metadata - Response from Glue's GetDatabase operation (https://docs.aws.amazon.com/glue/latest/webapi/API_GetDatabase.html#API_GetDatabase_ResponseSyntax)
 
-Both these entities have dedicated caches for themselves and can be enabled/tuned individually.
+c) Partition metadata - Response from Glue's GetPartition operation (https://docs.aws.amazon.com/glue/latest/webapi/API_GetPartition.html#API_GetPartition_ResponseSyntax) 
+
+All these entities have dedicated caches for themselves and can be enabled/tuned individually.
 
 To enable/tune Table cache, use the following properties in your hive/spark configuration file:
 
@@ -104,6 +121,37 @@ To enable/tune Database cache:
  		<name>aws.glue.cache.db.ttl-mins</name>
  		<value>30</value>
 	</property>
+
+To enable/tune Partition cache:
+
+	<property>
+ 		<name>aws.glue.cache.partition.enable</name>
+ 		<value>true</value>
+	</property>
+	<property>
+ 		<name>aws.glue.cache.partition.size</name>
+ 		<value>1000</value>
+	</property>
+	<property>
+ 		<name>aws.glue.cache.partition.ttl-mins</name>
+ 		<value>30</value>
+	</property>
+
+
+Same configuration can be achieve during the spark context creation using the following values:
+
+spark.hadoop.aws.glue.cache.db.enable true
+spark.hadoop.aws.glue.cache.db.size 1000
+spark.hadoop.aws.glue.cache.db.ttl-mins 30
+
+spark.hadoop.aws.glue.cache.table.enable true
+spark.hadoop.aws.glue.cache.table.size 1000
+spark.hadoop.aws.glue.cache.table.ttl-mins 30
+
+spark.hadoop.aws.glue.cache.partition.enable true
+spark.hadoop.aws.glue.cache.partition.size 1000
+spark.hadoop.aws.glue.cache.partition.ttl-mins 30
+
 
 NOTE: The caching logic is disabled by default. Also, there is no one-size-fits-all value for the cache size and ttl; feel free to tune these values as per your use case.
 
