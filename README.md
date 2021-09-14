@@ -88,7 +88,9 @@ a) Table metadata - Response from Glue's GetTable operation (https://docs.aws.am
 
 b) Database metadata - Response from Glue's GetDatabase operation (https://docs.aws.amazon.com/glue/latest/webapi/API_GetDatabase.html#API_GetDatabase_ResponseSyntax)
 
-c) Partition metadata - Response from Glue's GetPartition operation (https://docs.aws.amazon.com/glue/latest/webapi/API_GetPartition.html#API_GetPartition_ResponseSyntax) 
+c) Databases metadata - Response from Glue's GetDatabases operation (https://docs.aws.amazon.com/glue/latest/webapi/API_GetDatabases.html#API_GetDatabases_ResponseSyntax), the configs for Databases cache are the sames ones as Database.
+
+d) Partition metadata - Response from Glue's GetPartition operation (https://docs.aws.amazon.com/glue/latest/webapi/API_GetPartition.html#API_GetPartition_ResponseSyntax) 
 
 All these entities have dedicated caches for themselves and can be enabled/tuned individually.
 
