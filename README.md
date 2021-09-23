@@ -15,7 +15,7 @@ Obtain a copy of Hive from GitHub at https://github.com/apache/hive.
 
 To build the Hive client, you need to first apply this [patch](https://issues.apache.org/jira/secure/attachment/12958418/HIVE-12679.branch-2.3.patch).  Download this patch and move it to your local Hive git repository you created above.  Apply the patch and build Hive.
 
-	git checkout branch-2.3
+	git checkout rel/release-2.3.3
 	patch -p0 <HIVE-12679.branch-2.3.patch
 	mvn clean install -DskipTests
 
@@ -37,7 +37,7 @@ You are now ready to build the Hive client.
 As Spark uses a fork of Hive based off the 1.2.1 branch, in order to build the Spark client, you need Hive 1.2 built with this [patch](https://issues.apache.org/jira/secure/attachment/12958417/HIVE-12679.branch-1.2.patch).  Unlike Hive 2.x, Hive 1.x must be built with a Maven profile set to either "hadoop-1" or "hadoop-2".
 
 	cd <your local Hive repo>
-	git checkout branch-1.2
+	git checkout rel/release-1.2.2
 	patch -p0 <HIVE-12679.branch-1.2.patch
 	mvn clean install -DskipTests -Phadoop-2
 
