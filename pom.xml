@@ -21,8 +21,8 @@
     <guava.version>20.0</guava.version>
     <hive2.version>2.3.3</hive2.version>
     <fasterxml.jackson.version>2.9.10</fasterxml.jackson.version>
-    <!-- https://github.com/JoshRosen/hive/tree/release-1.2.1-spark2 -->
-    <spark-hive.version>1.2.1.spark2-SNAPSHOT</spark-hive.version>
+    <!-- https://github.com/ActionIQ-OSS/hive -->
+    <spark-hive.version>1.2.1.spark2-aiq1</spark-hive.version>
     <aws.sdk.version>1.11.1034</aws.sdk.version>
     <junit.version>4.11</junit.version>
     <mockito.version>1.10.19</mockito.version>
@@ -89,6 +89,17 @@
         <enabled>false</enabled>
       </snapshots>
     </repository>
+    <repository>
+      <id>aws-releases</id>
+      <name>AWS Releases Repository</name>
+      <url>s3://aiq-artifacts/releases</url>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
   </repositories>
 
   <pluginRepositories>
@@ -103,6 +114,15 @@
   </pluginRepositories>
 
   <build>
+    <extensions>
+      <extensions>
+        <extension>
+          <groupId>org.springframework.build</groupId>
+          <artifactId>aws-maven</artifactId>
+          <version>5.0.0.RELEASE</version>
+        </extension>
+      </extensions>
+    </extensions>
     <pluginManagement>
       <plugins>
         <plugin>
