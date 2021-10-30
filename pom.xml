@@ -21,7 +21,7 @@
     <guava.version>20.0</guava.version>
     <hive2.version>2.3.3</hive2.version>
     <!-- https://github.com/ActionIQ-OSS/hive -->
-    <spark-hive.version>1.2.1.spark2-aiq5</spark-hive.version>
+    <spark-hive.version>1.2.1.spark2-aiq10</spark-hive.version>
     <aws.sdk.version>1.11.1034</aws.sdk.version>
     <junit.version>4.11</junit.version>
     <mockito.version>1.10.19</mockito.version>
