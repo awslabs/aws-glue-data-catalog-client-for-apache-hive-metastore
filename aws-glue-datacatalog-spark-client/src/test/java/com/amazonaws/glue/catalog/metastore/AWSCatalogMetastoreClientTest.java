@@ -112,6 +112,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doReturn;
 
 public class AWSCatalogMetastoreClientTest {
 
@@ -155,7 +156,8 @@ public class AWSCatalogMetastoreClientTest {
     clientFactory = mock(GlueClientFactory.class);
     metastoreFactory = mock(AWSGlueMetastoreFactory.class);
     when(clientFactory.newClient()).thenReturn(glueClient);
-    when(metastoreFactory.newMetastore(conf)).thenReturn(new DefaultAWSGlueMetastore(conf, glueClient));
+    AWSGlueMetastore defStore = new DefaultAWSGlueMetastore(conf, glueClient);
+    doReturn(defStore).when(metastoreFactory).newMetastore(conf);
     metastoreClient = new AWSCatalogMetastoreClient.Builder().withClientFactory(clientFactory)
         .withMetastoreFactory(metastoreFactory).withWarehouse(wh).createDefaults(false).withHiveConf(conf).build();
   }
