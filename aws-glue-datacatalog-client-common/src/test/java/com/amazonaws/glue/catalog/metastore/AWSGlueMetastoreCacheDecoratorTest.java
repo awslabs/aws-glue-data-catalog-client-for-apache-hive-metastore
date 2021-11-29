@@ -1,5 +1,6 @@
 package com.amazonaws.glue.catalog.metastore;
 
+import com.amazonaws.glue.catalog.util.FakeTicker;
 import com.amazonaws.services.glue.model.Database;
 import com.amazonaws.services.glue.model.DatabaseInput;
 import com.amazonaws.services.glue.model.Table;
@@ -12,6 +13,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -263,13 +265,12 @@ public class AWSGlueMetastoreCacheDecoratorTest {
         cacheDecorator.databasesCache = dbsCache;
         cacheDecorator.databaseCache = dbCache;
 
-        when(dbsCache.size()).thenReturn(0L);
         when(glueMetastore.getAllDatabases()).thenReturn(dbs);
 
         assertEquals(dbs, cacheDecorator.getAllDatabases());
 
         verify(glueMetastore, times(1)).getAllDatabases();
-        verify(dbsCache, times(1)).size();
+        verify(dbsCache, times(1)).getIfPresent(DATABASES_CACHE_KEY);
         verify(dbsCache, times(1)).put(DATABASES_CACHE_KEY, dbNames);
     }
 
@@ -288,7 +289,6 @@ public class AWSGlueMetastoreCacheDecoratorTest {
         cacheDecorator.databasesCache = dbsCache;
         cacheDecorator.databaseCache = dbCache;
 
-        when(dbsCache.size()).thenReturn(1L);
         when(dbsCache.getIfPresent(DATABASES_CACHE_KEY)).thenReturn(dbNames);
         when(dbCache.getIfPresent(db1.getName())).thenReturn(db1);
         when(dbCache.getIfPresent(db2.getName())).thenReturn(null);
@@ -297,8 +297,46 @@ public class AWSGlueMetastoreCacheDecoratorTest {
         assertEquals(dbs, cacheDecorator.getAllDatabases());
 
         verify(glueMetastore, times(1)).getAllDatabases();
-        verify(dbsCache, times(1)).size();
+        verify(dbsCache, times(1)).getIfPresent(DATABASES_CACHE_KEY);
         verify(dbsCache, times(1)).put(DATABASES_CACHE_KEY, dbNames);
+    }
+
+    /** verifies accessing expired 'databases' cache entry triggers reloading without throwing */
+    @Test
+    public void testGetAllDatabasesWhenCacheEnabledAndDatabasesCacheExpired() {
+        Database db1 = new Database();
+        Database db2 = new Database();
+        db1.setName("db1");
+        db2.setName("db2");
+        List<Database> dbs = Arrays.asList(db1, db2);
+
+        FakeTicker ticker = new FakeTicker();
+        List<String> dbNames = Arrays.asList(db1.getName(), db2.getName());
+        AWSGlueMetastoreCacheDecorator cacheDecorator =
+                new AWSGlueMetastoreCacheDecorator(hiveConf, glueMetastore, ticker);
+        assertNotNull(cacheDecorator.databasesCache);
+        assertNotNull(cacheDecorator.databaseCache);
+
+        when(glueMetastore.getAllDatabases()).thenReturn(dbs);
+
+        // numDatabasesLoading refers to # of invocations for glueMetastore.getAllDatabases
+        int numDatabasesFetchFromMetastore = 0;
+
+        // first invocation; cache initially empty so should fetch from glueMetastore
+        assertEquals(dbs, cacheDecorator.getAllDatabases());
+        numDatabasesFetchFromMetastore += 1;
+        verify(glueMetastore, times(numDatabasesFetchFromMetastore)).getAllDatabases();
+
+        // second invocation; this should use the cached entry without fetching from glueMetastore
+        assertEquals(dbs, cacheDecorator.getAllDatabases());
+        verify(glueMetastore, times(numDatabasesFetchFromMetastore)).getAllDatabases();
+
+        // now expire databasesCache cache.
+        // An invocation after expiration should fetch from glueMetastore
+        ticker.advance(100, TimeUnit.MINUTES);
+        assertEquals(dbs, cacheDecorator.getAllDatabases());
+        numDatabasesFetchFromMetastore += 1;
+        verify(glueMetastore, times(numDatabasesFetchFromMetastore)).getAllDatabases();
     }
 
     @Test
@@ -317,14 +355,16 @@ public class AWSGlueMetastoreCacheDecoratorTest {
         cacheDecorator.databasesCache = dbsCache;
         cacheDecorator.databaseCache = dbCache;
 
-        when(dbsCache.size()).thenReturn(2L);
         when(dbsCache.getIfPresent(DATABASES_CACHE_KEY)).thenReturn(dbNames);
         when(dbCache.getIfPresent(db1.getName())).thenReturn(db1);
         when(dbCache.getIfPresent(db2.getName())).thenReturn(db2);
 
         assertEquals(dbs, cacheDecorator.getAllDatabases());
 
-        verify(dbsCache, times(1)).size();
+        verify(dbsCache, times(1)).getIfPresent(DATABASES_CACHE_KEY);
+
+        // should have used the cached entry without loading from glueMetastore
+        verify(glueMetastore, times(0)).getAllDatabases();
     }
 
     @Test
