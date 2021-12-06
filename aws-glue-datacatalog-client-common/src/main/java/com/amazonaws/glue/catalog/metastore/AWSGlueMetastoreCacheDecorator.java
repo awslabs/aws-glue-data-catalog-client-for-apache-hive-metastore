@@ -44,6 +44,8 @@ public class AWSGlueMetastoreCacheDecorator extends AWSGlueMetastoreBaseDecorato
     private final boolean databaseCacheEnabled;
 
     private final boolean tableCacheEnabled;
+	
+    private final String DATABASES_CACHE_KEY = "*";
     
     private final boolean partitionCacheEnabled;
 
@@ -60,6 +62,8 @@ public class AWSGlueMetastoreCacheDecorator extends AWSGlueMetastoreBaseDecorato
     @VisibleForTesting
     protected Cache<PartitionCollectionIdentifier, List<Partition>> partitionCollectionCache;
 
+	
+	
     public AWSGlueMetastoreCacheDecorator(HiveConf conf, AWSGlueMetastore awsGlueMetastore) {
         this(conf, awsGlueMetastore, Ticker.systemTicker());
     }
@@ -84,6 +88,8 @@ public class AWSGlueMetastoreCacheDecorator extends AWSGlueMetastoreBaseDecorato
                     .expireAfterWrite(dbCacheTtlMins, TimeUnit.MINUTES).build();
             databasesCache = CacheBuilder.newBuilder().maximumSize(dbCacheSize)
                     .ticker(ticker)
+                    .expireAfterWrite(dbCacheTtlMins, TimeUnit.MINUTES).build();
+            databasesCache = CacheBuilder.newBuilder().maximumSize(dbCacheSize)
                     .expireAfterWrite(dbCacheTtlMins, TimeUnit.MINUTES).build();
         } else {
             databaseCache = null;
@@ -259,6 +265,15 @@ public class AWSGlueMetastoreCacheDecorator extends AWSGlueMetastoreBaseDecorato
     private void purgeTableFromCache(String dbName, String tableName) {
         TableIdentifier key = new TableIdentifier(dbName, tableName);
         tableCache.invalidate(key);
+    }
+    
+	private void cacheAllDatabases(List<Database> allDatabases) {
+        List<String> allNames = new ArrayList<>();
+        for (Database db : allDatabases) {
+            databaseCache.put(db.getName(), db);
+            allNames.add(db.getName());
+        }
+        databasesCache.put(DATABASES_CACHE_KEY, allNames);
     }
     
     @Override
