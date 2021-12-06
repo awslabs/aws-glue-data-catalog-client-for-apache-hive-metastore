@@ -8,6 +8,7 @@ import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.glue.model.TableInput;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
+import com.google.common.base.Ticker;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -60,8 +61,11 @@ public class AWSGlueMetastoreCacheDecorator extends AWSGlueMetastoreBaseDecorato
     protected Cache<PartitionCollectionIdentifier, List<Partition>> partitionCollectionCache;
 
     public AWSGlueMetastoreCacheDecorator(HiveConf conf, AWSGlueMetastore awsGlueMetastore) {
-        super(awsGlueMetastore);
+        this(conf, awsGlueMetastore, Ticker.systemTicker());
+    }
 
+    public AWSGlueMetastoreCacheDecorator(HiveConf conf, AWSGlueMetastore awsGlueMetastore, Ticker ticker) {
+        super(awsGlueMetastore);
         checkNotNull(conf, "conf can not be null");
         this.conf = conf;
 
@@ -76,8 +80,10 @@ public class AWSGlueMetastoreCacheDecorator extends AWSGlueMetastoreBaseDecorato
 
             //initialize database cache
             databaseCache = CacheBuilder.newBuilder().maximumSize(dbCacheSize)
+                    .ticker(ticker)
                     .expireAfterWrite(dbCacheTtlMins, TimeUnit.MINUTES).build();
             databasesCache = CacheBuilder.newBuilder().maximumSize(dbCacheSize)
+                    .ticker(ticker)
                     .expireAfterWrite(dbCacheTtlMins, TimeUnit.MINUTES).build();
         } else {
             databaseCache = null;
@@ -95,6 +101,7 @@ public class AWSGlueMetastoreCacheDecorator extends AWSGlueMetastoreBaseDecorato
 
             //initialize table cache
             tableCache = CacheBuilder.newBuilder().maximumSize(tableCacheSize)
+                    .ticker(ticker)
                     .expireAfterWrite(tableCacheTtlMins, TimeUnit.MINUTES).build();
         } else {
             tableCache = null;
@@ -154,10 +161,9 @@ public class AWSGlueMetastoreCacheDecorator extends AWSGlueMetastoreBaseDecorato
     public List<Database> getAllDatabases() {
         List<Database> allDatabases;
         if (databaseCacheEnabled) {
-            if (databasesCache.size() > 0L) {
-                List<String> databaseNames;
+            List<String> databaseNames = databasesCache.getIfPresent(DATABASES_CACHE_KEY);
+            if (databaseNames != null) {
                 List<Database> databases = new ArrayList<>();
-                databaseNames = databasesCache.getIfPresent(DATABASES_CACHE_KEY);
                 for (String name : databaseNames) {
                     Database valueFromCache = databaseCache.getIfPresent(name);
                     if (valueFromCache != null) {
