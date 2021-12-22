@@ -16,6 +16,7 @@ Obtain a copy of Hive from GitHub at https://github.com/apache/hive.
 To build the Hive client, you need to first apply this [patch](https://issues.apache.org/jira/secure/attachment/12958418/HIVE-12679.branch-2.3.patch).  Download this patch and move it to your local Hive git repository you created above.  Apply the patch and build Hive.
 
 	git checkout branch-2.3
+	curl -OL https://issues.apache.org/jira/secure/attachment/12958418/HIVE-12679.branch-2.3.patch
 	patch -p0 <HIVE-12679.branch-2.3.patch
 	mvn clean install -DskipTests
 
