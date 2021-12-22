@@ -15,11 +15,11 @@ Obtain a copy of Hive from GitHub at https://github.com/apache/hive.
 
 To build the Hive client, you need to first apply this [patch](https://issues.apache.org/jira/secure/attachment/12958418/HIVE-12679.branch-2.3.patch).  Download this patch and move it to your local Hive git repository you created above.  Apply the patch and build Hive.
 
-	git checkout branch-2.3
+	git checkout tags/rel/release-2.3.4 -b rel-2.3.4
 	patch -p0 <HIVE-12679.branch-2.3.patch
 	mvn clean install -DskipTests
 
-If you are using the default Maven settings, this will install a new version of patched Hive in ~/.m2/repositories/, i.e. ~/.m2/repository/org/apache/hive/hive/2.3.4-SNAPSHOT/.  The specific version of Hive will depend on the current version in pom.xml.  Presently, the latest version in the 2.3 branch (branch-2.3) is "2.3.4-SNAPSHOT".  You will need this version to build the client.
+Note that the `IMetaStore` API changed in version 2.3.6-SNAPSHOT that is not compatible with the client.
 
 ## Building the Hive Client
 
@@ -44,6 +44,15 @@ As Spark uses a fork of Hive based off the 1.2.1 branch, in order to build the S
 Go back to the AWS Glue Data Catalog Client repository and update the following property in pom.xml to match the version of Hive you just patched and installed locally.  Presently, the latest version in the 1.2 branch (branch-1.2) is "1.2.3-SNAPSHOT".
 
 	<spark-hive.version>1.2.3-SNAPSHOT</spark-hive.version>
+
+You've built the Hive 1.2.x branch under the `org.apache.hive` folder of your local maven repository. Next create a copy of these jars to the directory where maven expects to find the files.
+
+	mkdir -p ~/.m2/repository/org/spark-project/hive/hive-metastore
+	mkdir -p ~/.m2/repository/org/spark-project/hive/hive-exec
+
+
+	cp -R ~/.m2/repository/org/apache/hive/hive-metastore/1.2.3-SNAPSHOT ~/.m2/repository/org/spark-project/hive/hive-metastore/
+	cp -R ~/.m2/repository/org/apache/hive/hive-exec/1.2.3-SNAPSHOT ~/.m2/repository/org/spark-project/hive/hive-exec/
 
 You are now ready to build the Spark client.
 
