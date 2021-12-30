@@ -153,9 +153,10 @@ public class AWSCatalogMetastoreClientTest {
     conf.setInt(GlueMetastoreClientDelegate.NUM_PARTITION_SEGMENTS_CONF, 1);
     glueClient = spy(AWSGlue.class);
     clientFactory = mock(GlueClientFactory.class);
-    metastoreFactory = mock(AWSGlueMetastoreFactory.class);
     when(clientFactory.newClient()).thenReturn(glueClient);
-    when(metastoreFactory.newMetastore(conf)).thenReturn(new DefaultAWSGlueMetastore(conf, glueClient));
+    metastoreFactory = mock(AWSGlueMetastoreFactory.class);
+    AWSGlueMetastore defaultMetastore = new DefaultAWSGlueMetastore(conf, glueClient);
+    when(metastoreFactory.newMetastore(conf)).thenReturn(defaultMetastore);
     metastoreClient = new AWSCatalogMetastoreClient.Builder().withClientFactory(clientFactory)
         .withMetastoreFactory(metastoreFactory).withWarehouse(wh).createDefaults(false).withHiveConf(conf).build();
   }
@@ -220,13 +221,13 @@ public class AWSCatalogMetastoreClientTest {
     verify(glueClient).getTable(request);
     assertThat(result, is(expectedFieldSchemas));
   }
-  
+
   @Test
   public void testGetTable() throws Exception {
     when(glueClient.getTable(new GetTableRequest().withDatabaseName(testTable.getDbName())
             .withName(testTable.getTableName()))).thenReturn(new GetTableResult()
             .withTable(HiveToCatalogConverter.convertTable(testTable)));
-    org.apache.hadoop.hive.metastore.api.Table result 
+    org.apache.hadoop.hive.metastore.api.Table result
       = metastoreClient.getTable(testTable.getDbName(), testTable.getTableName());
     verify(glueClient).getTable(new GetTableRequest().withDatabaseName(testTable.getDbName())
             .withName(testTable.getTableName()));
@@ -457,7 +458,7 @@ public class AWSCatalogMetastoreClientTest {
   }
 
   @Test
-  public void testAppendPartitionByName() throws Exception {    
+  public void testAppendPartitionByName() throws Exception {
     List<String> values = Arrays.asList("foo");
     when(glueClient.getTable(any(GetTableRequest.class)))
         .thenReturn(new GetTableResult().withTable(HiveToCatalogConverter.convertTable(testTable)));
@@ -473,7 +474,7 @@ public class AWSCatalogMetastoreClientTest {
     assertThat(res.getValues(), is(values));
     assertDaemonThreadPools();
   }
-    
+
   @Test
   public void testDropPartitionUsingName() throws Exception {
     Table table = HiveToCatalogConverter.convertTable(testTable);
@@ -799,7 +800,7 @@ public class AWSCatalogMetastoreClientTest {
             .withErrorCode(exception.getClass().getSimpleName())
             .withErrorMessage(exception.getMessage()));
   }
-  
+
   @Test
   public void testListPartitionsWithAuthInfo() throws Exception {
     String dbName = "default";
@@ -819,29 +820,29 @@ public class AWSCatalogMetastoreClientTest {
     .thenReturn(new GetTableResult().withTable(HiveToCatalogConverter.convertTable(testTable)));
     when(glueClient.getPartitions(expectedRequest))
       .thenReturn(new GetPartitionsResult().withPartitions(ImmutableList.of(partition)));
-    
+
     metastoreClient.listPartitionsWithAuthInfo(dbName, tblName, values, (short) 1, null, null);
 
     // Ensure the call reaches here despite the exception thrown by getPrincipalPrivilegeSet
     verify(glueClient).getPartitions(expectedRequest);
   }
-  
+
   @Test
   public void testRenamePartitionForHiveManagedTable() throws Exception {
     String dbName = testDB.getName();
     String tblName = testTable.getTableName();
     List<String> partitionValues = testPartition.getValues();
     Partition catalogPartition = HiveToCatalogConverter.convertPartition(testPartition);
-    
+
     Partition newPartition = new Partition()
                                   .withDatabaseName(dbName).withTableName(tblName)
                                   .withValues(Lists.newArrayList("newval"))
                                   .withStorageDescriptor(catalogPartition.getStorageDescriptor());
-    
+
     Path srcPath = new Path(testPartition.getSd().getLocation());
     Path expectedDestPath = new Path("/db/tbl/" ,
         Warehouse.makePartName(testTable.getPartitionKeys(), newPartition.getValues()));
-        
+
     when(glueClient.getDatabase(any(GetDatabaseRequest.class)))
       .thenReturn(new GetDatabaseResult().withDatabase(HiveToCatalogConverter.convertDatabase(testDB)));
     when(glueClient.getTable(any(GetTableRequest.class)))
@@ -856,33 +857,33 @@ public class AWSCatalogMetastoreClientTest {
     when(wh.getFs(any(Path.class))).thenReturn(fs);
     when(fs.exists(srcPath)).thenReturn(true);
     when(fs.exists(expectedDestPath)).thenReturn(false);
-    when(wh.mkdirs(expectedDestPath.getParent(), true)).thenReturn(true);       
-    
+    when(wh.mkdirs(expectedDestPath.getParent(), true)).thenReturn(true);
+
     metastoreClient.renamePartition(dbName, tblName, partitionValues,
         CatalogToHiveConverter.convertPartition(newPartition));
-    
+
     // Verify catalog service is called , dest path's parent dirs are created and dfs rename is done
     verify(glueClient, times(1)).updatePartition(any(UpdatePartitionRequest.class));
     verify(wh).mkdirs(expectedDestPath.getParent(), true);
     verify(wh).renameDir(srcPath, expectedDestPath, true);
   }
-  
+
   @Test
   public void testRenamePartitionRevertWhenMetastoreoperationFails() throws Exception {
     String dbName = testDB.getName();
     String tblName = testTable.getTableName();
     List<String> partitionValues = testPartition.getValues();
     Partition catalogPartition = HiveToCatalogConverter.convertPartition(testPartition);
-    
+
     Partition newPartition = new Partition()
                                 .withDatabaseName(dbName).withTableName(tblName)
                                 .withValues(Lists.newArrayList("newval"))
                                 .withStorageDescriptor(catalogPartition.getStorageDescriptor());
-    
+
     Path srcPath = new Path(testPartition.getSd().getLocation());
     Path expectedDestPath = new Path("/db/tbl/" ,
         Warehouse.makePartName(testTable.getPartitionKeys(), newPartition.getValues()));
-        
+
     when(glueClient.getDatabase(any(GetDatabaseRequest.class)))
       .thenReturn(new GetDatabaseResult().withDatabase(HiveToCatalogConverter.convertDatabase(testDB)));
     when(glueClient.getTable(any(GetTableRequest.class)))
@@ -897,10 +898,10 @@ public class AWSCatalogMetastoreClientTest {
     when(wh.getFs(any(Path.class))).thenReturn(fs);
     when(fs.exists(srcPath)).thenReturn(true);
     when(fs.exists(expectedDestPath)).thenReturn(false);
-    
+
     // Fail directory creation
     when(wh.mkdirs(expectedDestPath.getParent(), true)).thenReturn(false);
-    
+
     boolean exceptionThrown = false;
     try {
       metastoreClient.renamePartition(dbName, tblName, partitionValues,
@@ -909,35 +910,35 @@ public class AWSCatalogMetastoreClientTest {
       exceptionThrown = true;
     }
     assertTrue(exceptionThrown);
-    
+
     // Verify catalog service is called , dest path's parent dirs are created and dfs rename is done
     verify(glueClient, times(2)).updatePartition(any(UpdatePartitionRequest.class));
   }
-  
+
   @Test(expected=InvalidOperationException.class)
   public void testRenamePartitionDestinationAlreadyExists() throws Exception {
     String dbName = testDB.getName();
     String tblName = testTable.getTableName();
     List<String> partitionValues = testPartition.getValues();
     Partition catalogPartition = HiveToCatalogConverter.convertPartition(testPartition);
-    
+
     Partition newPartition = new Partition()
                                   .withDatabaseName(dbName).withTableName(tblName)
                                   .withValues(Lists.newArrayList("newval"))
                                   .withStorageDescriptor(catalogPartition.getStorageDescriptor());
-    
+
     Path srcPath = new Path(testPartition.getSd().getLocation());
     Path expectedDestPath = new Path("/db/tbl/" , Warehouse.makePartName(testTable.getPartitionKeys(),
         newPartition.getValues()));
-        
+
     when(glueClient.getDatabase(any(GetDatabaseRequest.class)))
       .thenReturn(new GetDatabaseResult().withDatabase(HiveToCatalogConverter.convertDatabase(testDB)));
     when(glueClient.getTable(any(GetTableRequest.class)))
     .thenReturn(new GetTableResult().withTable(HiveToCatalogConverter.convertTable(testTable)));
     when(glueClient.getPartition(any(GetPartitionRequest.class)))
       .thenReturn(new GetPartitionResult().withPartition(catalogPartition));
-    
-    
+
+
     FileSystem fs = mock(FileSystem.class);
     when(fs.getUri()).thenReturn(new URI("s3://bucket"));
     when(hiveShims.getDefaultTablePath(any(org.apache.hadoop.hive.metastore.api.Database.class), anyString(), wh))
@@ -945,23 +946,23 @@ public class AWSCatalogMetastoreClientTest {
     when(wh.getFs(any(Path.class))).thenReturn(fs);
     when(fs.exists(srcPath)).thenReturn(true);
     when(fs.exists(expectedDestPath)).thenReturn(true);
-        
+
     metastoreClient.renamePartition(dbName, tblName, partitionValues,
         CatalogToHiveConverter.convertPartition(newPartition));
   }
-  
+
   @Test
   public void testRenamePartitionForExternalTable() throws Exception {
     String dbName = testDB.getName();
     Table externalTable = getTestTable();
-    externalTable.setTableType(TableType.EXTERNAL_TABLE.name());   
-    
+    externalTable.setTableType(TableType.EXTERNAL_TABLE.name());
+
     StorageDescriptor sd = HiveToCatalogConverter.convertStorageDescriptor(testPartition.getSd());
-    
+
     Partition oldPartition = new Partition()
         .withDatabaseName(dbName).withTableName(externalTable.getName())
         .withValues(Lists.newArrayList("oldval")).withStorageDescriptor(sd);
-    
+
     Partition newPartition = new Partition()
                                       .withDatabaseName(dbName).withTableName(externalTable.getName())
                                       .withValues(Lists.newArrayList("newval")).withStorageDescriptor(sd);
@@ -975,51 +976,51 @@ public class AWSCatalogMetastoreClientTest {
 
     metastoreClient.renamePartition(dbName, externalTable.getName(), oldPartition.getValues(),
         CatalogToHiveConverter.convertPartition(newPartition));
-    
+
     // Verify catalog service is called and no interactions with wh
     verify(glueClient, times(1)).updatePartition(any(UpdatePartitionRequest.class));
     verifyNoMoreInteractions(wh);
   }
-  
+
   @Test(expected=InvalidOperationException.class)
   public void testRenamePartitionForUnknownTable() throws Exception {
     String dbName = testDB.getName();
     Table externalTable = getTestTable();
-    externalTable.setTableType(TableType.EXTERNAL_TABLE.name());   
-    
+    externalTable.setTableType(TableType.EXTERNAL_TABLE.name());
+
     StorageDescriptor sd = HiveToCatalogConverter.convertStorageDescriptor(testPartition.getSd());
-    
+
     Partition oldPartition = new Partition()
         .withDatabaseName(dbName).withTableName(externalTable.getName())
         .withValues(Lists.newArrayList("oldval")).withStorageDescriptor(sd);
-    
+
     Partition newPartition = new Partition()
                                       .withDatabaseName(dbName).withTableName(externalTable.getName())
-                                      .withValues(Lists.newArrayList("newval")).withStorageDescriptor(sd);    
-        
+                                      .withValues(Lists.newArrayList("newval")).withStorageDescriptor(sd);
+
     when(glueClient.getDatabase(any(GetDatabaseRequest.class)))
       .thenReturn(new GetDatabaseResult().withDatabase(HiveToCatalogConverter.convertDatabase(testDB)));
     doThrow(EntityNotFoundException.class).when(glueClient).getTable(any(GetTableRequest.class));
-    
+
     when(glueClient.getPartition(any(GetPartitionRequest.class)))
-      .thenReturn(new GetPartitionResult().withPartition(oldPartition));     
-    
+      .thenReturn(new GetPartitionResult().withPartition(oldPartition));
+
     metastoreClient.renamePartition(dbName, externalTable.getName(), oldPartition.getValues(),
         CatalogToHiveConverter.convertPartition(newPartition));
   }
-  
+
   @Test(expected=InvalidOperationException.class)
   public void testRenamePartitionForUnknownPartition() throws Exception {
     String dbName = testDB.getName();
     Table externalTable = getTestTable();
-    externalTable.setTableType(TableType.EXTERNAL_TABLE.name());   
-    
+    externalTable.setTableType(TableType.EXTERNAL_TABLE.name());
+
     StorageDescriptor sd = HiveToCatalogConverter.convertStorageDescriptor(testPartition.getSd());
-    
+
     Partition oldPartition = new Partition()
         .withDatabaseName(dbName).withTableName(externalTable.getName())
         .withValues(Lists.newArrayList("oldval")).withStorageDescriptor(sd);
-    
+
     Partition newPartition = new Partition()
                                       .withDatabaseName(dbName).withTableName(externalTable.getName())
                                       .withValues(Lists.newArrayList("newval")).withStorageDescriptor(sd);
@@ -1029,23 +1030,23 @@ public class AWSCatalogMetastoreClientTest {
     when(glueClient.getTable(any(GetTableRequest.class)))
     .thenReturn(new GetTableResult().withTable(externalTable));
     doThrow(EntityNotFoundException.class).when(glueClient).getPartition(any(GetPartitionRequest.class));
-    
+
     metastoreClient.renamePartition(dbName, externalTable.getName(), oldPartition.getValues(),
         CatalogToHiveConverter.convertPartition(newPartition));
   }
-  
+
   @Test(expected=InvalidOperationException.class)
   public void testRenamePartitionForInvalidSD() throws Exception {
     String dbName = testDB.getName();
     Table externalTable = getTestTable();
-    externalTable.setTableType(TableType.EXTERNAL_TABLE.name());   
-    
+    externalTable.setTableType(TableType.EXTERNAL_TABLE.name());
+
     StorageDescriptor sd = HiveToCatalogConverter.convertStorageDescriptor(testPartition.getSd());
-    
+
     Partition oldPartition = new Partition()
         .withDatabaseName(dbName).withTableName(externalTable.getName())
         .withValues(Lists.newArrayList("oldval")).withStorageDescriptor(null);
-    
+
     Partition newPartition = new Partition()
                                       .withDatabaseName(dbName).withTableName(externalTable.getName())
                                       .withValues(Lists.newArrayList("newval")).withStorageDescriptor(sd);
@@ -1074,7 +1075,7 @@ public class AWSCatalogMetastoreClientTest {
     when(conf.getVar(HiveConf.ConfVars.METASTORE_PARTITION_NAME_WHITELIST_PATTERN)).thenReturn("[a-zA-Z0-9]+");
     metastoreClient.validatePartitionNameCharacters(partitionValue);
   }
-  
+
   @Test
   public void testListPartitionsByExpression() throws Exception {
     String dbName = testDB.getName();

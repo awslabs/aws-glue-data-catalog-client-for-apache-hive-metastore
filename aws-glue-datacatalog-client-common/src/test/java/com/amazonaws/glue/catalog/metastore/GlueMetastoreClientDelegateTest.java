@@ -116,7 +116,7 @@ public class GlueMetastoreClientDelegateTest {
 
   private GlueMetastoreClientDelegate metastoreClientDelegate;
   private GlueMetastoreClientDelegate metastoreClientDelegateCatalogId;
-  
+
   private HiveConf conf;
   HiveConf hiveConfCatalogId; // conf with CatalogId
   private AWSGlue glueClient;
@@ -135,7 +135,7 @@ public class GlueMetastoreClientDelegateTest {
     glueClient = mock(AWSGlue.class);
     wh = mock(Warehouse.class);
     metastoreClientDelegate = new GlueMetastoreClientDelegate(conf, new DefaultAWSGlueMetastore(conf, glueClient), wh);
-    
+
     // Create a client delegate with CatalogId
     hiveConfCatalogId = new HiveConf();
     hiveConfCatalogId.set(GlueMetastoreClientDelegate.CATALOG_ID_CONF, CATALOG_ID);
@@ -143,7 +143,7 @@ public class GlueMetastoreClientDelegateTest {
 
     testDb = getTestDatabase();
     testTbl= getTestTable(testDb.getName());
-    setupMockWarehouseForPath(new Path(testTbl.getStorageDescriptor().getLocation().toString()), false, true);
+    setupMockWarehouseForPath(new Path(testTbl.getStorageDescriptor().getLocation()), false, true);
   }
 
   private void setupMockWarehouseForPath(Path path, boolean isDir, boolean mkDir) throws Exception {
@@ -192,7 +192,7 @@ public class GlueMetastoreClientDelegateTest {
     verify(wh, times(1)).isDir(dbPath);
     verify(wh, never()).mkdirs(dbPath, true);
   }
-  
+
   @Test
   public void testCreateDatabaseWithoutExistingDir() throws Exception {
     Path dbPath = new Path(testDb.getLocationUri());
@@ -212,7 +212,7 @@ public class GlueMetastoreClientDelegateTest {
     List<String> dbs = metastoreClientDelegate.getDatabases("*");
     assertEquals(testDb.getName(), Iterables.getOnlyElement(dbs));
   }
-  
+
   @Test
   public void testGetDatabasesWithCatalogId() throws Exception {
     when(glueClient.getDatabases(any(GetDatabasesRequest.class))).thenReturn(
@@ -224,7 +224,7 @@ public class GlueMetastoreClientDelegateTest {
     assertEquals(CATALOG_ID, captor.getValue().getCatalogId());
     assertEquals(testDb.getName(), Iterables.getOnlyElement(dbs));
   }
-  
+
 
   @Test
   public void testGetDatabasesNullPattern() throws Exception {
@@ -254,7 +254,7 @@ public class GlueMetastoreClientDelegateTest {
     assertEquals(CATALOG_ID, request.getCatalogId());
     assertEquals("db", request.getName());
   }
-  
+
   @Test
   public void testGetAllDatabases() throws Exception {
     when(glueClient.getDatabases(any(GetDatabasesRequest.class))).thenReturn(
@@ -280,7 +280,7 @@ public class GlueMetastoreClientDelegateTest {
     metastoreClientDelegate.alterDatabase("db", CatalogToHiveConverter.convertDatabase(testDb));
     verify(glueClient, times(1)).updateDatabase(any(UpdateDatabaseRequest.class));
   }
-  
+
   @Test
   public void testAlterDatabaseWithCatalogId() throws Exception {
     metastoreClientDelegateCatalogId.alterDatabase("db", CatalogToHiveConverter.convertDatabase(testDb));
@@ -358,7 +358,7 @@ public class GlueMetastoreClientDelegateTest {
     verify(glueClient).getTables(new GetTablesRequest().withDatabaseName(testDb.getName()).withExpression("*"));
     assertThat(result, is(tableNames));
   }
-  
+
   @Test
   public void testGetTableWithCatalogId() throws Exception {
     Table tbl2 = getTestTable();
@@ -464,7 +464,7 @@ public class GlueMetastoreClientDelegateTest {
     verify(wh, never()).mkdirs(tblPath, true);
     assertEquals(CATALOG_ID, captor.getValue().getCatalogId());
   }
-  
+
   @Test
   public void testCreateTableWithoutExistingDir() throws Exception {
     Path tblPath = new Path(testTbl.getStorageDescriptor().getLocation());
@@ -671,7 +671,7 @@ public class GlueMetastoreClientDelegateTest {
     verify(glueClient, times(1)).getPartition(request);
     assertThat(result.getValues(), is(values));
   }
-  
+
   @Test
   public void testGetPartitionByValuesWithCatalogId() throws Exception {
     List<String> values = Lists.newArrayList("foo", "bar");
@@ -751,13 +751,13 @@ public class GlueMetastoreClientDelegateTest {
 
     List<org.apache.hadoop.hive.metastore.api.Partition> result
       = metastoreClientDelegateCatalogId.getPartitionsByNames(testDb.getName(), testTbl.getName(), ImmutableList.of(partitionName));
-    
+
     ArgumentCaptor<BatchGetPartitionRequest> captor = ArgumentCaptor.forClass(BatchGetPartitionRequest.class);
     verify(glueClient, times(1)).batchGetPartition(captor.capture());
     assertNotNull(result);
     assertEquals(CATALOG_ID, captor.getValue().getCatalogId());
   }
-  
+
   @Test
   public void testGetPartitionsByNamePropagateException() throws Exception {
     String exceptionMessage = "Partition not found";
@@ -838,7 +838,7 @@ public class GlueMetastoreClientDelegateTest {
       .thenAnswer(new Answer<GetPartitionsResult>() {
         @Override
         public GetPartitionsResult answer(InvocationOnMock invocation) {
-          GetPartitionsRequest request = invocation.getArgumentAt(0, GetPartitionsRequest.class);
+          GetPartitionsRequest request = invocation.getArgument(0);
           GetPartitionsResult result;
           if (request.getSegment() == null) {
             fail("Should pass in segment");
@@ -884,7 +884,7 @@ public class GlueMetastoreClientDelegateTest {
             .thenAnswer(new Answer<GetPartitionsResult>() {
               @Override
               public GetPartitionsResult answer(InvocationOnMock invocation) {
-                GetPartitionsRequest request = invocation.getArgumentAt(0, GetPartitionsRequest.class);
+                GetPartitionsRequest request = invocation.getArgument(0);
                 GetPartitionsResult result;
                 switch (request.getSegment().getSegmentNumber()) {
                   case 0:
@@ -928,7 +928,7 @@ public class GlueMetastoreClientDelegateTest {
     metastoreClientDelegate.dropPartition(testDb.getName(), testTbl.getName(), values, false, false, false);
     verify(glueClient, times(1)).deletePartition(request);
   }
-  
+
   @Test
   public void testDropPartitionUsingValuesWithCatalogId() throws Exception {
     List<String> values = Lists.newArrayList("foo", "bar");
@@ -1104,7 +1104,7 @@ public class GlueMetastoreClientDelegateTest {
     assertThat(partitionsCreated, containsInAnyOrder(partitions.toArray()));
     assertDaemonThreadPools();
   }
-  
+
   @Test
   public void testAddPartitionsTwoPagesWithCatalogId() throws Exception {
     mockBatchCreatePartitionsSucceed();
@@ -1548,9 +1548,9 @@ public class GlueMetastoreClientDelegateTest {
       }
     }
   }
-  
+
   //==================== Functions =====================
-  
+
   @Test
   public void getFunction() throws Exception {
     UserDefinedFunction udf = createUserDefinedFunction();
