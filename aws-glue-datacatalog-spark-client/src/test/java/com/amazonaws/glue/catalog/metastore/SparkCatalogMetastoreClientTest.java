@@ -24,6 +24,7 @@ public class SparkCatalogMetastoreClientTest {
 
   private AWSGlue glueClient;
   private AWSCatalogMetastoreClient metastoreClient;
+  private AWSGlueMetastoreFactory metastoreFactory;
   private Warehouse wh;
   private HiveConf conf;
   private GlueClientFactory clientFactory;
@@ -44,8 +45,11 @@ public class SparkCatalogMetastoreClientTest {
     glueClient = mock(AWSGlue.class);
     clientFactory = mock(GlueClientFactory.class);
     when(clientFactory.newClient()).thenReturn(glueClient);
+    metastoreFactory = mock(AWSGlueMetastoreFactory.class);
+    AWSGlueMetastore defaultMetastore = new DefaultAWSGlueMetastore(conf, glueClient);
+    when(metastoreFactory.newMetastore(conf)).thenReturn(defaultMetastore);
     metastoreClient = new AWSCatalogMetastoreClient.Builder().withClientFactory(clientFactory)
-      .withWarehouse(wh).createDefaults(false).withHiveConf(conf).build();
+        .withMetastoreFactory(metastoreFactory).withWarehouse(wh).createDefaults(false).withHiveConf(conf).build();
   }
 
   @Test

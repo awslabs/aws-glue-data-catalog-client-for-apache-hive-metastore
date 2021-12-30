@@ -16,6 +16,12 @@
             <artifactId>hive-metastore</artifactId>
             <version>${hive2.version}</version>
             <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.hbase</groupId>
+                    <artifactId>hbase-client</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.hive</groupId>
@@ -24,20 +30,27 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client</artifactId>
+            <version>${hadoop.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>com.amazonaws.glue</groupId>
             <artifactId>aws-glue-datacatalog-client-common</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-common</artifactId>
-            <version>${hadoop.version}</version>
-            <scope>provided</scope>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-glue</artifactId>
+            <version>${aws.sdk.version}</version>
+            <scope>${aws.deps.scope}</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpclient</artifactId>
             <version>${httpclient.version}</version>
+            <scope>${httpclient.deps.scope}</scope>
         </dependency>
 
         <dependency> <!-- reuse src/test/java dependencies -->
