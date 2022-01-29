@@ -1,5 +1,6 @@
 package com.amazonaws.glue.catalog.metastore.integrationtest;
 
+import com.amazonaws.glue.catalog.converters.BaseCatalogToHiveConverter;
 import com.amazonaws.glue.catalog.converters.CatalogToHiveConverter;
 import com.amazonaws.glue.catalog.converters.GlueInputConverter;
 import com.amazonaws.glue.catalog.metastore.AWSCatalogMetastoreClient;
@@ -60,6 +61,7 @@ public class MetastoreClientTableIntegrationTest {
 
   private com.amazonaws.services.glue.model.Table catalogTable;
   private Table hiveTable;
+  private CatalogToHiveConverter catalogToHiveConverter = new BaseCatalogToHiveConverter();
 
   @BeforeClass
   public static void setup() throws MetaException {
@@ -78,7 +80,7 @@ public class MetastoreClientTableIntegrationTest {
     metastoreClient = new AWSCatalogMetastoreClient.Builder().withHiveConf(conf).withWarehouse(wh)
             .withClientFactory(clientFactory).build();
     catalogDB = getTestDatabase();
-    hiveDB = CatalogToHiveConverter.convertDatabase(catalogDB);
+    hiveDB = new BaseCatalogToHiveConverter().convertDatabase(catalogDB);
     glueClient.createDatabase(new CreateDatabaseRequest()
       .withDatabaseInput(GlueInputConverter.convertToDatabaseInput(catalogDB)));
   }
@@ -86,7 +88,7 @@ public class MetastoreClientTableIntegrationTest {
   @Before
   public void setUpForClass() {
     catalogTable = getTestTable();
-    hiveTable = CatalogToHiveConverter.convertTable(catalogTable, catalogDB.getName());
+    hiveTable = catalogToHiveConverter.convertTable(catalogTable, catalogDB.getName());
   }
 
   @After
@@ -129,8 +131,8 @@ public class MetastoreClientTableIntegrationTest {
   public void alterTableValid() throws Exception {
     //TODO: add test for alter Table cascade.
     // if change is related with column and cascade is turned on, it will also change table's partition
-    String newType = "boolean";
-    Table newHiveTable = CatalogToHiveConverter.convertTable(getTestTable(), hiveTable.getDbName());
+    String newType = "VIRTUAL_VIEW";
+    Table newHiveTable = catalogToHiveConverter.convertTable(getTestTable(), hiveTable.getDbName());
 
     // changing table name is not supported
     newHiveTable.setTableName(hiveTable.getTableName());
@@ -155,7 +157,7 @@ public class MetastoreClientTableIntegrationTest {
   @Test (expected = UnknownDBException.class)
   public void alterTableInvalidDB() throws Exception {
     String newType = "newType";
-    Table newHiveTable = CatalogToHiveConverter.convertTable(getTestTable(), hiveTable.getDbName());
+    Table newHiveTable = catalogToHiveConverter.convertTable(getTestTable(), hiveTable.getDbName());
     newHiveTable.setTableName(hiveTable.getTableName());
     newHiveTable.setTableType(newType);
     metastoreClient.createTable(hiveTable);
@@ -248,7 +250,7 @@ public class MetastoreClientTableIntegrationTest {
 
   @Test
   public void getTableObjectsByNameValid() throws TException{
-    Table table1 = CatalogToHiveConverter.convertTable(getTestTable(), hiveDB.getName());
+    Table table1 = catalogToHiveConverter.convertTable(getTestTable(), hiveDB.getName());
     List<String> tableNameList = Lists.newArrayList();
     tableNameList.add(hiveTable.getTableName());
     tableNameList.add(table1.getTableName());
@@ -267,7 +269,7 @@ public class MetastoreClientTableIntegrationTest {
 
   @Test (expected = NoSuchObjectException.class)
   public void getTableObjectsByNameInvalidWithUnknownDb() throws TException {
-    Table table1 = CatalogToHiveConverter.convertTable(getTestTable(), hiveDB.getName());
+    Table table1 = catalogToHiveConverter.convertTable(getTestTable(), hiveDB.getName());
     List<String> tableNameList = Lists.newArrayList();
     tableNameList.add(hiveTable.getTableName());
     tableNameList.add(table1.getTableName());
@@ -302,7 +304,7 @@ public class MetastoreClientTableIntegrationTest {
   @Test
   public void getTablesValid() throws Exception {
     int expectedNum = 2;
-    Table table1 = CatalogToHiveConverter.convertTable(getTestTable(), hiveDB.getName());
+    Table table1 = catalogToHiveConverter.convertTable(getTestTable(), hiveDB.getName());
     metastoreClient.createTable(hiveTable);
     metastoreClient.createTable(table1);
 
@@ -321,7 +323,7 @@ public class MetastoreClientTableIntegrationTest {
   @Test
   public void getAllTablesValid() throws Exception {
     int expectedNum = 2;
-    Table table1 = CatalogToHiveConverter.convertTable(getTestTable(), hiveDB.getName());
+    Table table1 = catalogToHiveConverter.convertTable(getTestTable(), hiveDB.getName());
     metastoreClient.createTable(hiveTable);
     metastoreClient.createTable(table1);
 

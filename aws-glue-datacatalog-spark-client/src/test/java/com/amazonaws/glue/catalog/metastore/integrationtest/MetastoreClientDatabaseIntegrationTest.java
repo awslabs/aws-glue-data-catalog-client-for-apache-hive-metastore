@@ -1,5 +1,6 @@
 package com.amazonaws.glue.catalog.metastore.integrationtest;
 
+import com.amazonaws.glue.catalog.converters.BaseCatalogToHiveConverter;
 import com.amazonaws.glue.catalog.converters.CatalogToHiveConverter;
 import com.amazonaws.glue.catalog.metastore.AWSCatalogMetastoreClient;
 import com.amazonaws.glue.catalog.metastore.GlueClientFactory;
@@ -45,6 +46,7 @@ public class MetastoreClientDatabaseIntegrationTest {
   private HiveConf conf;
   private Path tmpPath;
   private List<String> additionalDbForCleanup;
+  private CatalogToHiveConverter catalogToHiveConverter = new BaseCatalogToHiveConverter();
 
   @Before
   public void setup() throws MetaException {
@@ -63,7 +65,7 @@ public class MetastoreClientDatabaseIntegrationTest {
     metastoreClient = new AWSCatalogMetastoreClient.Builder().withHiveConf(conf).withWarehouse(wh)
         .withClientFactory(clientFactory).build();
     catalogDB = getTestDatabase();
-    hiveDB = CatalogToHiveConverter.convertDatabase(catalogDB);
+    hiveDB = catalogToHiveConverter.convertDatabase(catalogDB);
 
     additionalDbForCleanup = Lists.newArrayList();
   }
@@ -119,7 +121,7 @@ public class MetastoreClientDatabaseIntegrationTest {
 
   @Test
   public void listValidDatabases() throws TException {
-    Database database2 = CatalogToHiveConverter.convertDatabase(getTestDatabase());
+    Database database2 = catalogToHiveConverter.convertDatabase(getTestDatabase());
     additionalDbForCleanup.add(database2.getName());
     metastoreClient.createDatabase(hiveDB);
     metastoreClient.createDatabase(database2);
@@ -141,7 +143,7 @@ public class MetastoreClientDatabaseIntegrationTest {
 
     metastoreClient.createDatabase(hiveDB);
 
-    Database updatedDB = CatalogToHiveConverter.convertDatabase(getTestDatabase());
+    Database updatedDB = catalogToHiveConverter.convertDatabase(getTestDatabase());
     updatedDB.setName(hiveDB.getName());
     updatedDB.setParameters(parameters);
 

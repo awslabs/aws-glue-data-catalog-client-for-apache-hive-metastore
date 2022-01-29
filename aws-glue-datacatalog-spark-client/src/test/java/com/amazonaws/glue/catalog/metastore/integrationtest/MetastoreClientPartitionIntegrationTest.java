@@ -1,5 +1,6 @@
 package com.amazonaws.glue.catalog.metastore.integrationtest;
 
+import com.amazonaws.glue.catalog.converters.BaseCatalogToHiveConverter;
 import com.amazonaws.glue.catalog.converters.CatalogToHiveConverter;
 import com.amazonaws.glue.catalog.converters.GlueInputConverter;
 import com.amazonaws.glue.catalog.metastore.AWSCatalogMetastoreClient;
@@ -43,6 +44,7 @@ import static org.hamcrest.CoreMatchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -53,12 +55,13 @@ public class MetastoreClientPartitionIntegrationTest {
   private static Database catalogDatabase;
   private static Table catalogTable;
   private AwsGlueHiveShims hiveShims = ShimsLoader.getHiveShims();
+  private CatalogToHiveConverter catalogToHiveConverter = new BaseCatalogToHiveConverter();
+
 
   @BeforeClass
   public static void setUpForClass() throws MetaException {
-    HiveConf conf = mock(HiveConf.class);
+    HiveConf conf = new HiveConf();
     Warehouse wh = mock(Warehouse.class);
-    when(conf.get(HiveConf.ConfVars.USERS_IN_ADMIN_ROLE.varname,"")).thenReturn("");
 
     glueClient = new GlueTestClientFactory().newClient();
     GlueClientFactory clientFactory = mock(GlueClientFactory.class);
@@ -102,7 +105,7 @@ public class MetastoreClientPartitionIntegrationTest {
     List<Partition> partitions = Lists.newArrayList(partition1, partition2);
     List<org.apache.hadoop.hive.metastore.api.Partition> hivePartitions = Lists.newArrayList();
     for (Partition p : partitions) {
-      hivePartitions.add(CatalogToHiveConverter.convertPartition(p));
+      hivePartitions.add(catalogToHiveConverter.convertPartition(p));
     }
 
     List<org.apache.hadoop.hive.metastore.api.Partition> partitionsCreated =
@@ -142,7 +145,7 @@ public class MetastoreClientPartitionIntegrationTest {
         namespaceName, tableName, getDropPartitionExpressions(partitions), false, false, false);
 
     for (Partition p : partitions) {
-      org.apache.hadoop.hive.metastore.api.Partition hivePartition = CatalogToHiveConverter.convertPartition(p);
+      org.apache.hadoop.hive.metastore.api.Partition hivePartition = catalogToHiveConverter.convertPartition(p);
       assertTrue(containsPartitionIgnoreCreateTime(deletedPartitions, hivePartition));
     }
   }

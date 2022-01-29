@@ -8,7 +8,6 @@ import com.google.common.collect.Maps;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.metastore.MetaStoreUtils;
 import org.apache.hadoop.hive.metastore.Warehouse;
 import org.apache.hadoop.hive.metastore.api.InvalidObjectException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
@@ -39,7 +38,7 @@ public final class MetastoreClientUtils {
 
     boolean madeDir = false;
     if (!wh.isDir(path)) {
-      if (!wh.mkdirs(path, true)) {
+      if (!hiveShims.mkdirs(wh, path)) {
         throw new MetaException("Unable to create path: " + path);
       }
       madeDir = true;
@@ -58,13 +57,13 @@ public final class MetastoreClientUtils {
     if (!hiveShims.validateTableName(table.getTableName(), conf)) {
       throw new InvalidObjectException(table.getTableName() + " is not a valid object name");
     }
-    String validate = MetaStoreUtils.validateTblColumns(table.getSd().getCols());
+    String validate = hiveShims.validateTblColumns(table.getSd().getCols());
     if (validate != null) {
       throw new InvalidObjectException("Invalid column " + validate);
     }
 
     if (table.getPartitionKeys() != null) {
-      validate = MetaStoreUtils.validateTblColumns(table.getPartitionKeys());
+      validate = hiveShims.validateTblColumns(table.getPartitionKeys());
       if (validate != null) {
         throw new InvalidObjectException("Invalid partition column " + validate);
       }
@@ -121,4 +120,5 @@ public final class MetastoreClientUtils {
     // This case defaults to using the caller's account Id as Catalog Id.
     return null;
   }
+
 }

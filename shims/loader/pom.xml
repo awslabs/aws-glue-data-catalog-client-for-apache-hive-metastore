@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.amazonaws.glue</groupId>
         <artifactId>shims</artifactId>
-        <version>1.10.0-SNAPSHOT</version>
+        <version>3.4.0-SNAPSHOT</version>
         <relativePath>../</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
@@ -20,12 +20,12 @@
         <dependency>
             <groupId>org.apache.hive</groupId>
             <artifactId>hive-exec</artifactId>
-            <version>${hive2.version}</version>
+            <version>${hive3.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.amazonaws.glue</groupId>
-            <artifactId>hive2-shims</artifactId>
+            <artifactId>hive3-shims</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

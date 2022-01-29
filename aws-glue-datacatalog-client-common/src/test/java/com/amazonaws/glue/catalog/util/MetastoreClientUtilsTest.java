@@ -1,7 +1,8 @@
 package com.amazonaws.glue.catalog.util;
 
-import com.amazonaws.glue.catalog.converters.CatalogToHiveConverter;
+import com.amazonaws.glue.catalog.converters.BaseCatalogToHiveConverter;
 
+import com.amazonaws.glue.catalog.converters.CatalogToHiveConverter;
 import com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -27,11 +28,12 @@ import static org.mockito.Mockito.when;
 
 public class MetastoreClientUtilsTest {
 
+  private static final String TEST_LOCATION = "s3://mybucket/";
+
   private Warehouse wh;
   private HiveConf conf;
 
   private Path testPath;
-  private static final String TEST_LOCATION = "s3://mybucket/";
   private Database testDb;
   private Table testTbl;
 
@@ -40,8 +42,9 @@ public class MetastoreClientUtilsTest {
     wh = mock(Warehouse.class);
     conf = new HiveConf();
     testPath = new Path(TEST_LOCATION);
-    testDb = CatalogToHiveConverter.convertDatabase(getTestDatabase());
-    testTbl = CatalogToHiveConverter.convertTable(getTestTable(), testDb.getName());
+    CatalogToHiveConverter catalogToHiveConverter = new BaseCatalogToHiveConverter();
+    testDb = catalogToHiveConverter.convertDatabase(getTestDatabase());
+    testTbl = catalogToHiveConverter.convertTable(getTestTable(), testDb.getName());
   }
 
   @Test(expected = NullPointerException.class)
@@ -63,7 +66,7 @@ public class MetastoreClientUtilsTest {
   @Test(expected = MetaException.class)
   public void testMakeDirsCannotCreateDir() throws Exception {
     when(wh.isDir(testPath)).thenReturn(false);
-    when(wh.mkdirs(testPath, true)).thenReturn(false);
+    when(wh.mkdirs(testPath)).thenReturn(false);
     MetastoreClientUtils.makeDirs(wh, testPath);
   }
 

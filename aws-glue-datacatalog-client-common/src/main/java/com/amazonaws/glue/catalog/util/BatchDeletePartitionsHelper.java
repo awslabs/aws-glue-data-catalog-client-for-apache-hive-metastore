@@ -1,7 +1,8 @@
 package com.amazonaws.glue.catalog.util;
 
+import com.amazonaws.glue.catalog.converters.BaseCatalogToHiveConverter;
 import com.amazonaws.glue.catalog.converters.CatalogToHiveConverter;
-import com.amazonaws.glue.catalog.metastore.GlueMetastoreClientDelegate;
+import com.amazonaws.glue.catalog.converters.CatalogToHiveConverterFactory;
 import com.amazonaws.services.glue.model.BatchDeletePartitionRequest;
 import com.amazonaws.services.glue.model.BatchDeletePartitionResult;
 import com.amazonaws.services.glue.model.EntityNotFoundException;
@@ -30,6 +31,7 @@ public final class BatchDeletePartitionsHelper {
   private final List<Partition> partitions;
   private Map<PartitionKey, Partition> partitionMap;
   private TException firstTException;
+  private CatalogToHiveConverter catalogToHiveConverter;
 
   public BatchDeletePartitionsHelper(AWSGlue client, String namespaceName, String tableName,
                                      String catalogId, List<Partition> partitions) {
@@ -38,6 +40,7 @@ public final class BatchDeletePartitionsHelper {
     this.tableName = tableName;
     this.catalogId = catalogId;
     this.partitions = partitions;
+    catalogToHiveConverter = CatalogToHiveConverterFactory.getCatalogToHiveConverter();
   }
 
   public BatchDeletePartitionsHelper deletePartitions() {
@@ -52,7 +55,7 @@ public final class BatchDeletePartitionsHelper {
       processResult(result);
     } catch (Exception e) {
       logger.error("Exception thrown while deleting partitions in DataCatalog: ", e);
-      firstTException = CatalogToHiveConverter.wrapInHiveException(e);
+      firstTException = catalogToHiveConverter.wrapInHiveException(e);
       if (PartitionUtils.isInvalidUserInputException(e)) {
         setAllFailed();
       } else {
@@ -80,7 +83,7 @@ public final class BatchDeletePartitionsHelper {
       ErrorDetail errorDetail = partitionError.getErrorDetail();
       logger.error(errorDetail.toString());
       if (firstTException == null) {
-        firstTException = CatalogToHiveConverter.errorDetailToHiveException(errorDetail);
+        firstTException = catalogToHiveConverter.errorDetailToHiveException(errorDetail);
       }
     }
   }

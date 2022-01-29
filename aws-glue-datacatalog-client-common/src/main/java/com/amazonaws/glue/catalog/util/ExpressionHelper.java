@@ -1,7 +1,7 @@
 package com.amazonaws.glue.catalog.util;
 
 import com.amazonaws.glue.shims.ShimsLoader;
-
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
@@ -61,6 +61,32 @@ public final class ExpressionHelper {
     Set<String> columnNamesInNotInExpression = Sets.newHashSet();
     fieldEscaper(exprTree.getChildren(), exprTree, columnNamesInNotInExpression);
     String expression = rewriteExpressionForNotIn(exprTree.getExprString(), columnNamesInNotInExpression);
+    return removeDecimalTypeSuffixIfNecessary(expression);
+  }
+
+  /**
+   * @return expression that is compatible with Glue API due to HIVE-18797 code change in the Hive
+   * 3.x the ExprConstNodeDesc's getExprString put additional literal qualifier with literals. These
+   * additional letters cannot be recognized by Glue API.
+   *
+   * Removes the following literal qualifiers from partition expressions for compatibility with Glue
+   * API. 
+   * 
+   * - L : BigInt
+   * - D : Decimal
+   * - S  : SmallInt
+   * - Y  : TinyInt
+   * - BD : BigDecimal
+   *
+   * Ex: col1 > 10L -> col1 > 10
+   *     col1 > 10D -> col1 > 10
+   *     col1 > 10S -> col1 > 10
+   *     col1 > 10Y -> col1 > 10
+   *     col1 > 10BD -> col1 > 10
+   */
+  @VisibleForTesting
+  protected static String removeDecimalTypeSuffixIfNecessary(String expression) {
+    expression = expression.replaceAll("L\\)|D\\)|S\\)|Y\\)|BD\\)", ")");
     return expression;
   }
 

@@ -5,7 +5,7 @@ import com.amazonaws.auth.AWSSessionCredentials;
 import com.amazonaws.auth.BasicSessionCredentials;
 import com.amazonaws.internal.StaticCredentialsProvider;
 
-import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.conf.Configuration;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -16,13 +16,13 @@ public class SessionCredentialsProviderFactory implements AWSCredentialsProvider
   public final static String AWS_SESSION_TOKEN_CONF_VAR = "hive.aws_session_token";
   
   @Override
-  public AWSCredentialsProvider buildAWSCredentialsProvider(HiveConf hiveConf) {
+  public AWSCredentialsProvider buildAWSCredentialsProvider(Configuration conf) {
 
-    checkArgument(hiveConf != null, "hiveConf cannot be null.");
+    checkArgument(conf != null, "conf cannot be null.");
     
-    String accessKey = hiveConf.get(AWS_ACCESS_KEY_CONF_VAR);
-    String secretKey = hiveConf.get(AWS_SECRET_KEY_CONF_VAR);
-    String sessionToken = hiveConf.get(AWS_SESSION_TOKEN_CONF_VAR);
+    String accessKey = conf.get(AWS_ACCESS_KEY_CONF_VAR);
+    String secretKey = conf.get(AWS_SECRET_KEY_CONF_VAR);
+    String sessionToken = conf.get(AWS_SESSION_TOKEN_CONF_VAR);
     
     checkArgument(accessKey != null, AWS_ACCESS_KEY_CONF_VAR + " must be set.");
     checkArgument(secretKey != null, AWS_SECRET_KEY_CONF_VAR + " must be set.");

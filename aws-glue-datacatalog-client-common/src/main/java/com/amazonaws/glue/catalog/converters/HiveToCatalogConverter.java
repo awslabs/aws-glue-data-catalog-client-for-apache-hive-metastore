@@ -1,28 +1,44 @@
 package com.amazonaws.glue.catalog.converters;
 
+import org.apache.hadoop.hive.metastore.api.BinaryColumnStatsData;
+import org.apache.hadoop.hive.metastore.api.BooleanColumnStatsData;
+import org.apache.hadoop.hive.metastore.api.ColumnStatistics;
+import org.apache.hadoop.hive.metastore.api.ColumnStatisticsData;
+import org.apache.hadoop.hive.metastore.api.ColumnStatisticsDesc;
+import org.apache.hadoop.hive.metastore.api.ColumnStatisticsObj;
 import org.apache.hadoop.hive.metastore.api.Database;
+import org.apache.hadoop.hive.metastore.api.DateColumnStatsData;
+import org.apache.hadoop.hive.metastore.api.Decimal;
+import org.apache.hadoop.hive.metastore.api.DecimalColumnStatsData;
+import org.apache.hadoop.hive.metastore.api.DoubleColumnStatsData;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Function;
-import org.apache.hadoop.hive.metastore.api.Index;
+import org.apache.hadoop.hive.metastore.api.LongColumnStatsData;
 import org.apache.hadoop.hive.metastore.api.Order;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.ResourceUri;
 import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.metastore.api.SkewedInfo;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
+import org.apache.hadoop.hive.metastore.api.StringColumnStatsData;
 import org.apache.hadoop.hive.metastore.api.Table;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
-import static com.amazonaws.glue.catalog.converters.ConverterUtils.INDEX_DB_NAME;
-import static com.amazonaws.glue.catalog.converters.ConverterUtils.INDEX_DEFERRED_REBUILD;
-import static com.amazonaws.glue.catalog.converters.ConverterUtils.INDEX_HANDLER_CLASS;
-import static com.amazonaws.glue.catalog.converters.ConverterUtils.INDEX_ORIGIN_TABLE_NAME;
-import static com.amazonaws.glue.catalog.converters.ConverterUtils.INDEX_TABLE_NAME;
+import com.amazonaws.services.glue.model.BinaryColumnStatisticsData;
+import com.amazonaws.services.glue.model.BooleanColumnStatisticsData;
+import com.amazonaws.services.glue.model.ColumnStatisticsType;
+import com.amazonaws.services.glue.model.DateColumnStatisticsData;
+import com.amazonaws.services.glue.model.DecimalColumnStatisticsData;
+import com.amazonaws.services.glue.model.DoubleColumnStatisticsData;
+import com.amazonaws.services.glue.model.LongColumnStatisticsData;
+import com.amazonaws.services.glue.model.StringColumnStatisticsData;
 
 public class HiveToCatalogConverter {
 
@@ -134,25 +150,6 @@ public class HiveToCatalogConverter {
 
     return catalogOrderList;
   }
-
-  public static com.amazonaws.services.glue.model.Table convertIndexToTableObject(Index hiveIndex) {
-    // convert index object to a table object
-    com.amazonaws.services.glue.model.Table catalogIndexTableObject = new com.amazonaws.services.glue.model.Table();
-    catalogIndexTableObject.setName(hiveIndex.getIndexName());
-    catalogIndexTableObject.setCreateTime(new Date((long) (hiveIndex.getCreateTime()) * 1000));
-    catalogIndexTableObject.setLastAccessTime(new Date((long) (hiveIndex.getLastAccessTime()) * 1000));
-    catalogIndexTableObject.setStorageDescriptor(convertStorageDescriptor(hiveIndex.getSd()));
-    catalogIndexTableObject.setParameters(hiveIndex.getParameters());
-
-    // store rest of fields in index to paramter map
-    catalogIndexTableObject.getParameters().put(INDEX_DEFERRED_REBUILD, hiveIndex.isDeferredRebuild() ? "TRUE": "FALSE");
-    catalogIndexTableObject.getParameters().put(INDEX_TABLE_NAME, hiveIndex.getIndexTableName());
-    catalogIndexTableObject.getParameters().put(INDEX_HANDLER_CLASS, hiveIndex.getIndexHandlerClass());
-    catalogIndexTableObject.getParameters().put(INDEX_DB_NAME, hiveIndex.getDbName());
-    catalogIndexTableObject.getParameters().put(INDEX_ORIGIN_TABLE_NAME, hiveIndex.getOrigTableName());
-
-    return catalogIndexTableObject;
-  }
   
   public static com.amazonaws.services.glue.model.Partition convertPartition(Partition src) {
     com.amazonaws.services.glue.model.Partition tgt = new com.amazonaws.services.glue.model.Partition();
@@ -235,6 +232,121 @@ public class HiveToCatalogConverter {
       catalogResourceUriList.add(catalogResourceUri);
     }
     return catalogResourceUriList;
+  }
+
+  public static List<com.amazonaws.services.glue.model.ColumnStatistics> convertColumnStatisticsObjList(
+      ColumnStatistics hiveColumnStatistics) {
+    ColumnStatisticsDesc hiveColumnStatisticsDesc = hiveColumnStatistics.getStatsDesc();
+    List<ColumnStatisticsObj> hiveColumnStatisticsObjs = hiveColumnStatistics.getStatsObj();
+
+    List<com.amazonaws.services.glue.model.ColumnStatistics> catalogColumnStatisticsList = new ArrayList<>();
+    for (ColumnStatisticsObj hiveColumnStatisticsObj : hiveColumnStatisticsObjs) {
+      com.amazonaws.services.glue.model.ColumnStatistics catalogColumnStatistics =
+          new com.amazonaws.services.glue.model.ColumnStatistics();
+      catalogColumnStatistics.setColumnName(hiveColumnStatisticsObj.getColName());
+      catalogColumnStatistics.setColumnType(hiveColumnStatisticsObj.getColType());
+      // Last analyzed time in Hive is in days since Epoch, Java Date is in milliseconds
+      catalogColumnStatistics.setAnalyzedTime(new Date(TimeUnit.DAYS.toMillis(hiveColumnStatisticsDesc.getLastAnalyzed())));
+      catalogColumnStatistics.setStatisticsData(convertColumnStatisticsData(hiveColumnStatisticsObj.getStatsData()));
+      catalogColumnStatisticsList.add(catalogColumnStatistics);
+    }
+
+    return catalogColumnStatisticsList;
+  }
+
+  private static com.amazonaws.services.glue.model.ColumnStatisticsData convertColumnStatisticsData(
+      ColumnStatisticsData hiveColumnStatisticsData) {
+    com.amazonaws.services.glue.model.ColumnStatisticsData catalogColumnStatisticsData =
+        new com.amazonaws.services.glue.model.ColumnStatisticsData();
+
+    // Hive uses the TUnion object to ensure that only one stats object is set at any time, this means that we can
+    // only call the get*() of a stats type if the 'setField' is set to that value
+    ColumnStatisticsData._Fields setField = hiveColumnStatisticsData.getSetField();
+    switch (setField) {
+      case BINARY_STATS:
+        BinaryColumnStatsData hiveBinaryData = hiveColumnStatisticsData.getBinaryStats();
+        BinaryColumnStatisticsData catalogBinaryData = new BinaryColumnStatisticsData();
+        catalogBinaryData.setNumberOfNulls(hiveBinaryData.getNumNulls());
+        catalogBinaryData.setMaximumLength(hiveBinaryData.getMaxColLen());
+        catalogBinaryData.setAverageLength(hiveBinaryData.getAvgColLen());
+        catalogColumnStatisticsData.setType(String.valueOf(ColumnStatisticsType.BINARY));
+        catalogColumnStatisticsData.setBinaryColumnStatisticsData(catalogBinaryData);
+        break;
+
+      case BOOLEAN_STATS:
+        BooleanColumnStatsData hiveBooleanData = hiveColumnStatisticsData.getBooleanStats();
+        BooleanColumnStatisticsData catalogBooleanData = new BooleanColumnStatisticsData();
+        catalogBooleanData.setNumberOfNulls(hiveBooleanData.getNumNulls());
+        catalogBooleanData.setNumberOfFalses(hiveBooleanData.getNumFalses());
+        catalogBooleanData.setNumberOfTrues(hiveBooleanData.getNumTrues());
+        catalogColumnStatisticsData.setType(String.valueOf(ColumnStatisticsType.BOOLEAN));
+        catalogColumnStatisticsData.setBooleanColumnStatisticsData(catalogBooleanData);
+        break;
+
+      case DATE_STATS:
+        DateColumnStatsData hiveDateData = hiveColumnStatisticsData.getDateStats();
+        DateColumnStatisticsData catalogDateData = new DateColumnStatisticsData();
+        catalogDateData.setNumberOfNulls(hiveDateData.getNumNulls());
+        catalogDateData.setNumberOfDistinctValues(hiveDateData.getNumDVs());
+        catalogDateData.setMaximumValue(ConverterUtils.hiveDatetoDate(hiveDateData.getHighValue()));
+        catalogDateData.setMinimumValue(ConverterUtils.hiveDatetoDate(hiveDateData.getLowValue()));
+        catalogColumnStatisticsData.setType(String.valueOf(ColumnStatisticsType.DATE));
+        catalogColumnStatisticsData.setDateColumnStatisticsData(catalogDateData);
+        break;
+
+      case DECIMAL_STATS:
+        DecimalColumnStatsData hiveDecimalData = hiveColumnStatisticsData.getDecimalStats();
+        DecimalColumnStatisticsData catalogDecimalData = new DecimalColumnStatisticsData();
+        catalogDecimalData.setNumberOfNulls(hiveDecimalData.getNumNulls());
+        catalogDecimalData.setNumberOfDistinctValues(hiveDecimalData.getNumDVs());
+        catalogDecimalData.setMaximumValue(convertDecimal(hiveDecimalData.getHighValue()));
+        catalogDecimalData.setMinimumValue(convertDecimal(hiveDecimalData.getLowValue()));
+        catalogColumnStatisticsData.setType(String.valueOf(ColumnStatisticsType.DECIMAL));
+        catalogColumnStatisticsData.setDecimalColumnStatisticsData(catalogDecimalData);
+        break;
+
+      case DOUBLE_STATS:
+        DoubleColumnStatsData hiveDoubleData = hiveColumnStatisticsData.getDoubleStats();
+        DoubleColumnStatisticsData catalogDoubleData = new DoubleColumnStatisticsData();
+        catalogDoubleData.setNumberOfNulls(hiveDoubleData.getNumNulls());
+        catalogDoubleData.setNumberOfDistinctValues(hiveDoubleData.getNumDVs());
+        catalogDoubleData.setMaximumValue(hiveDoubleData.getHighValue());
+        catalogDoubleData.setMinimumValue(hiveDoubleData.getLowValue());
+        catalogColumnStatisticsData.setType(String.valueOf(ColumnStatisticsType.DOUBLE));
+        catalogColumnStatisticsData.setDoubleColumnStatisticsData(catalogDoubleData);
+        break;
+      case LONG_STATS:
+        LongColumnStatsData hiveLongData = hiveColumnStatisticsData.getLongStats();
+        LongColumnStatisticsData catalogLongData = new LongColumnStatisticsData();
+        catalogLongData.setNumberOfNulls(hiveLongData.getNumNulls());
+        catalogLongData.setNumberOfDistinctValues(hiveLongData.getNumDVs());
+        catalogLongData.setMaximumValue(hiveLongData.getHighValue());
+        catalogLongData.setMinimumValue(hiveLongData.getLowValue());
+        catalogColumnStatisticsData.setType(String.valueOf(ColumnStatisticsType.LONG));
+        catalogColumnStatisticsData.setLongColumnStatisticsData(catalogLongData);
+        break;
+
+      case STRING_STATS:
+        StringColumnStatsData hiveStringData = hiveColumnStatisticsData.getStringStats();
+        StringColumnStatisticsData catalogStringData = new StringColumnStatisticsData();
+        catalogStringData.setNumberOfNulls(hiveStringData.getNumNulls());
+        catalogStringData.setNumberOfDistinctValues(hiveStringData.getNumDVs());
+        catalogStringData.setMaximumLength(hiveStringData.getMaxColLen());
+        catalogStringData.setAverageLength(hiveStringData.getAvgColLen());
+        catalogColumnStatisticsData.setType(String.valueOf(ColumnStatisticsType.STRING));
+        catalogColumnStatisticsData.setStringColumnStatisticsData(catalogStringData);
+        break;
+    }
+
+    return catalogColumnStatisticsData;
+  }
+
+  private static com.amazonaws.services.glue.model.DecimalNumber convertDecimal(Decimal hiveDecimal) {
+    com.amazonaws.services.glue.model.DecimalNumber catalogDecimal =
+        new com.amazonaws.services.glue.model.DecimalNumber();
+    catalogDecimal.setUnscaledValue(ByteBuffer.wrap(hiveDecimal.getUnscaled()));
+    catalogDecimal.setScale((int)hiveDecimal.getScale());
+    return catalogDecimal;
   }
 
 }

@@ -253,4 +253,40 @@ public class ExpressionHelperTest {
     assertEquals("((booleanCol = true) and ((charCol = 'c') and (dateCol = '2017-11-14')))",
             catalogExpression);
   }
+
+  @Test
+  public void testRemoveDecimalTypeSuffixIfNecessary() throws Exception {
+    assertEquals(
+        ExpressionHelper.removeDecimalTypeSuffixIfNecessary("((col4 > 0D) and (col4 < 300Y))"),
+        "((col4 > 0) and (col4 < 300))");
+    assertEquals(ExpressionHelper.removeDecimalTypeSuffixIfNecessary(
+        "((col4 > 0Y) and (col4 < 300S) and (col4 < 300L) and (col4 < 300X))"),
+        "((col4 > 0) and (col4 < 300) and (col4 < 300) and (col4 < 300X))");
+    assertEquals(ExpressionHelper.removeDecimalTypeSuffixIfNecessary(
+        "((col4D > 0Y) and (col4Y < 300S) and (col4S < 300L) and (col4L < 300X))"),
+        "((col4D > 0) and (col4Y < 300) and (col4S < 300) and (col4L < 300X))");
+    assertEquals(ExpressionHelper.removeDecimalTypeSuffixIfNecessary(
+        "((col4 > 0y) and (col4 < 300s) and (col4 < 300l) and (col4 < 300X))"),
+        "((col4 > 0y) and (col4 < 300s) and (col4 < 300l) and (col4 < 300X))");
+    assertEquals(ExpressionHelper.removeDecimalTypeSuffixIfNecessary(
+        "((col4 > '0Y') and (col4 < 300S) and (col4 < '300L') and (col4 < 300X))"),
+        "((col4 > '0Y') and (col4 < 300) and (col4 < '300L') and (col4 < 300X))");
+    assertEquals(
+        ExpressionHelper.removeDecimalTypeSuffixIfNecessary("((col4 > 0D) and (col2 < '300Y'))"),
+        "((col4 > 0) and (col2 < '300Y'))");
+    assertEquals(ExpressionHelper.removeDecimalTypeSuffixIfNecessary("(col4 > 0L)"), "(col4 > 0)");
+    assertEquals(
+        ExpressionHelper.removeDecimalTypeSuffixIfNecessary("((col4 = 'AAA') or (col4 = 'VV'))"),
+        "((col4 = 'AAA') or (col4 = 'VV'))");
+    assertEquals(ExpressionHelper.removeDecimalTypeSuffixIfNecessary(
+        "((col4 > 0D) and (col2 < '300Y') or (col3 = 34BD)) or (col3BD = '34BD'))"),
+        "((col4 > 0) and (col2 < '300Y') or (col3 = 34)) or (col3BD = '34BD'))");
+    assertEquals(ExpressionHelper
+            .removeDecimalTypeSuffixIfNecessary("((col4 > 0D) and (col2 < '300Y') or (col3 = '34DB'))"),
+        "((col4 > 0) and (col2 < '300Y') or (col3 = '34DB'))");
+    assertEquals(ExpressionHelper
+            .removeDecimalTypeSuffixIfNecessary(
+                "((col4Y > 0D) and (col2BD < '300Y') or (col34D = '34DB'))"),
+        "((col4Y > 0) and (col2BD < '300Y') or (col34D = '34DB'))");
+  }
 }

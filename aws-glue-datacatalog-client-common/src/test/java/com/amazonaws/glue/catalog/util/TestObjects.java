@@ -4,7 +4,6 @@ import com.amazonaws.services.glue.model.Database;
 import com.amazonaws.services.glue.model.ErrorDetail;
 import com.amazonaws.services.glue.model.PartitionError;
 import com.amazonaws.services.glue.model.UserDefinedFunction;
-import com.amazonaws.glue.catalog.converters.CatalogToHiveConverter;
 import com.amazonaws.glue.catalog.converters.HiveToCatalogConverter;
 import com.amazonaws.services.glue.model.Column;
 import com.amazonaws.services.glue.model.Order;
@@ -26,11 +25,12 @@ import org.apache.hadoop.hive.metastore.api.DoubleColumnStatsData;
 import org.apache.hadoop.hive.metastore.api.HiveObjectPrivilege;
 import org.apache.hadoop.hive.metastore.api.HiveObjectRef;
 import org.apache.hadoop.hive.metastore.api.HiveObjectType;
-import org.apache.hadoop.hive.metastore.api.Index;
 import org.apache.hadoop.hive.metastore.api.LongColumnStatsData;
 import org.apache.hadoop.hive.metastore.api.PrivilegeBag;
 import org.apache.hadoop.hive.metastore.api.Role;
 import org.apache.hadoop.hive.metastore.api.StringColumnStatsData;
+import org.apache.hadoop.hive.metastore.api.SetPartitionsStatsRequest;
+import org.apache.hadoop.hive.metastore.api.ColumnStatistics;
 
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
@@ -41,12 +41,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
-import static com.amazonaws.glue.catalog.converters.ConverterUtils.INDEX_DB_NAME;
-import static com.amazonaws.glue.catalog.converters.ConverterUtils.INDEX_DEFERRED_REBUILD;
-import static com.amazonaws.glue.catalog.converters.ConverterUtils.INDEX_HANDLER_CLASS;
-import static com.amazonaws.glue.catalog.converters.ConverterUtils.INDEX_ORIGIN_TABLE_NAME;
-import static com.amazonaws.glue.catalog.converters.ConverterUtils.INDEX_TABLE_NAME;
 
 public final class TestObjects {
 
@@ -144,30 +138,6 @@ public final class TestObjects {
     return fieldList;
   }
 
-  public static Index getTestHiveIndex(final String dbName) {
-    Index index = new Index();
-    index.setIndexName("testIndex" + UUID.randomUUID().toString().replaceAll("[^a-zA-Z0-9]+", ""));
-    index.setCreateTime((int)(System.currentTimeMillis() / 1000));
-    index.setLastAccessTime((int)(System.currentTimeMillis() / 1000));
-    index.setDbName(dbName);
-    index.setDeferredRebuild(false);
-    index.setOrigTableName("OriginalTable");
-    index.setIndexTableName("IndexTable");
-    index.setIndexHandlerClass("handlerClass");
-    index.setParameters(new HashMap<String, String>());
-    index.setSd(CatalogToHiveConverter.convertStorageDescriptor(getTestStorageDescriptor()));
-
-    return index;
-  }
-
-  public static void setIndexParametersForIndexTable(Table indexTable, String dbName, String originTableName) {
-    indexTable.getParameters().put(INDEX_DEFERRED_REBUILD, "FALSE");
-    indexTable.getParameters().put(INDEX_HANDLER_CLASS, "handlerClass");
-    indexTable.getParameters().put(INDEX_DB_NAME, dbName);
-    indexTable.getParameters().put(INDEX_ORIGIN_TABLE_NAME, originTableName);
-    indexTable.getParameters().put(INDEX_TABLE_NAME, indexTable.getName());
-  }
-
   public static SkewedInfo getSkewedInfo() {
     List<String> skewedName = new ArrayList<>();
     List<String> skewedValue = new ArrayList<>();
@@ -202,7 +172,10 @@ public final class TestObjects {
     List<ResourceUri> resourceUriList = Lists.newArrayList(new ResourceUri().withUri("s3://abc/def.jar")
             .withResourceType(ResourceType.JAR), new ResourceUri().withUri("hdfs://ghi/jkl.jar")
             .withResourceType(ResourceType.ARCHIVE));
-    return new UserDefinedFunction().withFunctionName("functionname").withClassName("classname").withOwnerName("ownername")
+    return new UserDefinedFunction()
+            .withFunctionName("functionname" + UUID.randomUUID().toString().replaceAll("[^a-zA-Z0-9]+", "").substring(0,4))
+            .withClassName("classname")
+            .withOwnerName("ownername")
             .withCreateTime(new Date(System.currentTimeMillis() / 1000 * 1000))
             .withOwnerType(PrincipalType.USER).withResourceUris(resourceUriList);
   }
@@ -367,4 +340,10 @@ public final class TestObjects {
     return role;
   }
 
+  public static SetPartitionsStatsRequest getSetPartitionsStatsRequest() {
+    ColumnStatistics columnStatistic = getHiveTableColumnStatistics();
+    List<ColumnStatistics> columnStatistics = new ArrayList<>();
+    columnStatistics.add(columnStatistic);
+    return new SetPartitionsStatsRequest(columnStatistics);
+  }
 }

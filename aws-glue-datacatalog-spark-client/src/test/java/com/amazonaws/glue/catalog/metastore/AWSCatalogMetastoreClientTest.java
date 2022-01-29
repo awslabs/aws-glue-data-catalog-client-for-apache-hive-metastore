@@ -1,7 +1,7 @@
 package com.amazonaws.glue.catalog.metastore;
 
+import com.amazonaws.glue.catalog.converters.BaseCatalogToHiveConverter;
 import com.amazonaws.glue.catalog.converters.CatalogToHiveConverter;
-import com.amazonaws.glue.catalog.converters.GlueInputConverter;
 import com.amazonaws.glue.catalog.converters.HiveToCatalogConverter;
 import com.amazonaws.glue.catalog.util.ExprBuilder;
 import com.amazonaws.glue.catalog.util.ExpressionHelper;
@@ -15,14 +15,15 @@ import com.amazonaws.services.glue.model.BatchDeletePartitionRequest;
 import com.amazonaws.services.glue.model.BatchDeletePartitionResult;
 import com.amazonaws.services.glue.model.Column;
 import com.amazonaws.services.glue.model.CreateDatabaseRequest;
-import com.amazonaws.services.glue.model.CreateTableRequest;
 import com.amazonaws.services.glue.model.CreateUserDefinedFunctionRequest;
 import com.amazonaws.services.glue.model.CreateUserDefinedFunctionResult;
 import com.amazonaws.services.glue.model.DeletePartitionRequest;
 import com.amazonaws.services.glue.model.DeletePartitionResult;
-import com.amazonaws.services.glue.model.DeleteTableRequest;
 import com.amazonaws.services.glue.model.EntityNotFoundException;
 import com.amazonaws.services.glue.model.ErrorDetail;
+import com.amazonaws.services.glue.model.GetColumnStatisticsForPartitionResult;
+import com.amazonaws.services.glue.model.GetColumnStatisticsForTableRequest;
+import com.amazonaws.services.glue.model.GetColumnStatisticsForTableResult;
 import com.amazonaws.services.glue.model.GetDatabaseRequest;
 import com.amazonaws.services.glue.model.GetDatabaseResult;
 import com.amazonaws.services.glue.model.GetPartitionRequest;
@@ -44,8 +45,11 @@ import com.amazonaws.services.glue.model.PartitionError;
 import com.amazonaws.services.glue.model.StorageDescriptor;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.glue.model.TableInput;
+import com.amazonaws.services.glue.model.UpdateColumnStatisticsForPartitionRequest;
+import com.amazonaws.services.glue.model.UpdateColumnStatisticsForPartitionResult;
+import com.amazonaws.services.glue.model.UpdateColumnStatisticsForTableRequest;
+import com.amazonaws.services.glue.model.UpdateColumnStatisticsForTableResult;
 import com.amazonaws.services.glue.model.UpdatePartitionRequest;
-import com.amazonaws.services.glue.model.UpdateTableRequest;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -53,13 +57,14 @@ import com.google.common.collect.Sets;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.ObjectPair;
+import org.apache.hadoop.hive.common.StatsSetupConst;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.Warehouse;
+import org.apache.hadoop.hive.metastore.api.EnvironmentContext;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Function;
-import org.apache.hadoop.hive.metastore.api.Index;
 import org.apache.hadoop.hive.metastore.api.InvalidObjectException;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
@@ -80,14 +85,12 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Future;
 
-import static com.amazonaws.glue.catalog.converters.ConverterUtils.catalogTableToString;
 import static com.amazonaws.glue.catalog.util.TestObjects.getCatalogTestFunction;
 import static com.amazonaws.glue.catalog.util.TestObjects.getTestDatabase;
-import static com.amazonaws.glue.catalog.util.TestObjects.getTestHiveIndex;
 import static com.amazonaws.glue.catalog.util.TestObjects.getTestPartition;
 import static com.amazonaws.glue.catalog.util.TestObjects.getTestTable;
-import static com.amazonaws.glue.catalog.util.TestObjects.setIndexParametersForIndexTable;
 import static org.apache.hadoop.hive.metastore.HiveMetaStore.PUBLIC;
 import static org.apache.hadoop.hive.metastore.MetaStoreUtils.DEFAULT_DATABASE_NAME;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -115,20 +118,17 @@ import static org.mockito.Mockito.when;
 
 public class AWSCatalogMetastoreClientTest {
 
-  private static final String INDEX_PREFIX = "index_prefix";
-
   private AWSGlue glueClient;
   private AWSCatalogMetastoreClient metastoreClient;
   private Warehouse wh;
   private HiveConf conf;
   private GlueClientFactory clientFactory;
-  private AWSGlueMetastoreFactory metastoreFactory;
   private final AwsGlueHiveShims hiveShims = ShimsLoader.getHiveShims();
+  private CatalogToHiveConverter catalogToHiveConverter = new BaseCatalogToHiveConverter();
 
   // Test objects
   private org.apache.hadoop.hive.metastore.api.Database testDB;
   private org.apache.hadoop.hive.metastore.api.Table testTable;
-  private org.apache.hadoop.hive.metastore.api.Index testIndex;
   private org.apache.hadoop.hive.metastore.api.Partition testPartition;
   private org.apache.hadoop.hive.metastore.api.Function testFunction;
   private Path defaultWhPath;
@@ -136,12 +136,11 @@ public class AWSCatalogMetastoreClientTest {
 
   @Before
   public void setUp() throws Exception {
-    testDB = CatalogToHiveConverter.convertDatabase(getTestDatabase());
-    testTable = CatalogToHiveConverter.convertTable(getTestTable(), testDB.getName());
-    testIndex = getTestHiveIndex(testDB.getName());
-    testPartition = CatalogToHiveConverter.convertPartition(
+    testDB = catalogToHiveConverter.convertDatabase(getTestDatabase());
+    testTable = catalogToHiveConverter.convertTable(getTestTable(), testDB.getName());
+    testPartition = catalogToHiveConverter.convertPartition(
       getTestPartition(testDB.getName(), testTable.getTableName(), Lists.newArrayList("val1")));
-    testFunction = CatalogToHiveConverter.convertFunction(testDB.getName(), getCatalogTestFunction());
+    testFunction = catalogToHiveConverter.convertFunction(testDB.getName(), getCatalogTestFunction());
     defaultWhPath = new Path("/tmp");
     partitionPath = new Path(testPartition.getSd().getLocation());
 
@@ -153,11 +152,9 @@ public class AWSCatalogMetastoreClientTest {
     conf.setInt(GlueMetastoreClientDelegate.NUM_PARTITION_SEGMENTS_CONF, 1);
     glueClient = spy(AWSGlue.class);
     clientFactory = mock(GlueClientFactory.class);
-    metastoreFactory = mock(AWSGlueMetastoreFactory.class);
     when(clientFactory.newClient()).thenReturn(glueClient);
-    when(metastoreFactory.newMetastore(conf)).thenReturn(new DefaultAWSGlueMetastore(conf, glueClient));
     metastoreClient = new AWSCatalogMetastoreClient.Builder().withClientFactory(clientFactory)
-        .withMetastoreFactory(metastoreFactory).withWarehouse(wh).createDefaults(false).withHiveConf(conf).build();
+        .withWarehouse(wh).createDefaults(false).withHiveConf(conf).build();
   }
 
   private void setupMockWarehouseForPath(Path path, boolean isDir, boolean isDefaultDbPath) throws MetaException {
@@ -175,7 +172,7 @@ public class AWSCatalogMetastoreClientTest {
 
     when(conf.getVar(conf, ConfVars.USERS_IN_ADMIN_ROLE, "")).thenReturn("");
     metastoreClient = new AWSCatalogMetastoreClient.Builder().withClientFactory(clientFactory)
-        .withMetastoreFactory(metastoreFactory).withWarehouse(wh).createDefaults(true).withHiveConf(conf).build();
+        .withWarehouse(wh).createDefaults(true).withHiveConf(conf).build();
 
     verify(glueClient, times(1)).createDatabase(any(CreateDatabaseRequest.class));
     verify(wh, times(1)).getDefaultDatabasePath(DEFAULT_DATABASE_NAME);
@@ -262,131 +259,6 @@ public class AWSCatalogMetastoreClientTest {
   }
 
   @Test
-  public void testAlterIndex() throws Exception {
-    Table catalogIndexTable = HiveToCatalogConverter.convertIndexToTableObject(testIndex);
-    testTable.getParameters().put(INDEX_PREFIX + testIndex.getIndexName(), catalogTableToString(catalogIndexTable));
-
-    when(glueClient.getTable(new GetTableRequest().withDatabaseName(testDB.getName()).withName(testTable.getTableName())))
-        .thenReturn(new GetTableResult().withTable(HiveToCatalogConverter.convertTable(testTable)));
-    when(glueClient.getDatabase(new GetDatabaseRequest().withName(testDB.getName())))
-      .thenReturn(new GetDatabaseResult().withDatabase(HiveToCatalogConverter.convertDatabase(testDB)));
-
-    testIndex.setIndexHandlerClass("test_alter");
-    Table updatedIndex = HiveToCatalogConverter.convertIndexToTableObject(testIndex);
-    TableInput expectedTableInputWithIndex = GlueInputConverter.convertToTableInput(testTable);
-    expectedTableInputWithIndex.getParameters().put(INDEX_PREFIX + testIndex.getIndexName(), catalogTableToString(updatedIndex));
-
-    metastoreClient.alter_index(testDB.getName(), testTable.getTableName(), testIndex.getIndexName(), testIndex);
-
-    // verify UpdateRequestTable call is made with expected table input containing new Index
-    ArgumentCaptor<UpdateTableRequest> captor = ArgumentCaptor.forClass(UpdateTableRequest.class);
-    verify(glueClient, times(1)).updateTable(captor.capture());
-    assertEquals(expectedTableInputWithIndex, captor.getValue().getTableInput());
-  }
-
-  @Test
-  public void testGetIndex() throws Exception {
-    Table catalogIndexTableObject = HiveToCatalogConverter.convertIndexToTableObject(testIndex);
-    testTable.getParameters().put(INDEX_PREFIX + testIndex.getIndexName(), catalogTableToString(catalogIndexTableObject));
-
-    when(glueClient.getTable(any(GetTableRequest.class)))
-        .thenReturn(new GetTableResult().withTable(HiveToCatalogConverter.convertTable(testTable)));
-    Index index = metastoreClient.getIndex(testTable.getDbName(), testTable.getTableName(), testIndex.getIndexName());
-
-    verify(glueClient).getTable(any(GetTableRequest.class));
-    assertEquals(testIndex, index);
-  }
-
-  @Test
-  public void testListIndexNames() throws Exception{
-    Index testIndex2 = getTestHiveIndex(testDB.getName());
-    List<String> expectedIndexNameList = ImmutableList.of(testIndex.getIndexName(), testIndex2.getIndexName());
-    List<Index> indexList = ImmutableList.of(testIndex, testIndex2);
-    for (Index index : indexList) {
-      Table catalogIndex = HiveToCatalogConverter.convertIndexToTableObject(index);
-      testTable.getParameters().put(INDEX_PREFIX + index.getIndexName(), catalogTableToString(catalogIndex));
-    }
-
-    when(glueClient.getTable(any(GetTableRequest.class)))
-      .thenReturn(new GetTableResult().withTable(HiveToCatalogConverter.convertTable(testTable)));
-    List<String> result = metastoreClient.listIndexNames(testTable.getDbName(), testTable.getTableName(), (short)2);
-
-    verify(glueClient).getTable(any(GetTableRequest.class));
-    assertEquals(expectedIndexNameList.size(), result.size());
-    for (String indexName : expectedIndexNameList) {
-      assertTrue(result.contains(indexName));
-    }
-  }
-
-  @Test
-  public void testListIndexes() throws Exception {
-    Index testIndex2 = getTestHiveIndex(testDB.getName());
-    List<Index> expectedIndexList = ImmutableList.of(testIndex, testIndex2);
-    for (Index index : expectedIndexList) {
-      Table catalogIndex = HiveToCatalogConverter.convertIndexToTableObject(index);
-      testTable.getParameters().put(INDEX_PREFIX + index.getIndexName(), catalogTableToString(catalogIndex));
-    }
-
-    when(glueClient.getTable(any(GetTableRequest.class)))
-        .thenReturn(new GetTableResult().withTable(HiveToCatalogConverter.convertTable(testTable)));
-    List<Index> result = metastoreClient.listIndexes(testTable.getDbName(), testTable.getTableName(), (short)2);
-
-    verify(glueClient).getTable(any(GetTableRequest.class));
-    assertEquals(expectedIndexList.size(), result.size());
-    for (Index index : expectedIndexList) {
-      assertTrue(result.contains(index));
-    }
-  }
-
-  @Test
-  public void testCreateIndex() throws Exception {
-    Table catalogIndexTable = getTestTable();
-    org.apache.hadoop.hive.metastore.api.Table hiveIndexTable = CatalogToHiveConverter.convertTable(catalogIndexTable, testDB.getName());
-    testIndex.setOrigTableName(testTable.getTableName());
-    testIndex.setIndexTableName(hiveIndexTable.getTableName());
-
-    when(glueClient.getDatabase(new GetDatabaseRequest().withName(testDB.getName())))
-        .thenReturn(new GetDatabaseResult().withDatabase(HiveToCatalogConverter.convertDatabase(testDB)));
-    when(glueClient.getTable(new GetTableRequest().withDatabaseName(testDB.getName()).withName(testTable.getTableName())))
-        .thenReturn(new GetTableResult().withTable(HiveToCatalogConverter.convertTable(testTable)));
-    when(glueClient.getTable(new GetTableRequest().withDatabaseName(testDB.getName()).withName(hiveIndexTable.getTableName())))
-        .thenThrow(EntityNotFoundException.class);
-    when(glueClient.getPartitions(any(GetPartitionsRequest.class)))
-        .thenReturn(new GetPartitionsResult().withPartitions(ImmutableList.<Partition>of()));
-
-    metastoreClient.createIndex(testIndex, hiveIndexTable);
-
-    TableInput expectedTableInputWithIndex = GlueInputConverter.convertToTableInput(testTable);
-    expectedTableInputWithIndex.getParameters().put(INDEX_PREFIX + testIndex.getIndexName(), catalogTableToString(catalogIndexTable));
-    verify(glueClient).createTable(any(CreateTableRequest.class));
-    verify(glueClient).updateTable(new UpdateTableRequest().withDatabaseName(testDB.getName()).withTableInput(expectedTableInputWithIndex));
-  }
-
-  @Test
-  public void testDropIndex() throws Exception {
-    Table catalogIndexTable = getTestTable();
-    setIndexParametersForIndexTable(catalogIndexTable, testDB.getName(), testTable.getTableName());
-    testIndex.setOrigTableName(testTable.getTableName());
-    testIndex.setIndexTableName(catalogIndexTable.getName());
-    testTable.getParameters().put(INDEX_PREFIX + testIndex.getIndexName(), catalogTableToString(catalogIndexTable));
-
-    when(glueClient.getTable(new GetTableRequest().withDatabaseName(testDB.getName()).withName(testTable.getTableName())))
-      .thenReturn(new GetTableResult().withTable(HiveToCatalogConverter.convertTable(testTable)));
-    when(glueClient.getTable(new GetTableRequest().withDatabaseName(testDB.getName()).withName(testIndex.getIndexTableName())))
-      .thenReturn(new GetTableResult().withTable(catalogIndexTable));
-    when(glueClient.getDatabase(new GetDatabaseRequest().withName(testDB.getName())))
-      .thenReturn(new GetDatabaseResult().withDatabase(HiveToCatalogConverter.convertDatabase(testDB)));
-    when(glueClient.getPartitions(any(GetPartitionsRequest.class)))
-      .thenReturn(new GetPartitionsResult().withPartitions(ImmutableList.<Partition>of()));
-
-    metastoreClient.dropIndex(testDB.getName(), testTable.getTableName(), testIndex.getIndexName(), true);
-
-    TableInput expectedTableInput = GlueInputConverter.convertToTableInput(testTable);
-    verify(glueClient).updateTable(new UpdateTableRequest().withDatabaseName(testDB.getName()).withTableInput(expectedTableInput));
-    verify(glueClient).deleteTable(new DeleteTableRequest().withDatabaseName(testDB.getName()).withName(testIndex.getIndexTableName()));
-  }
-
-  @Test
   public void testListPartitionNames() throws Exception {
     List<String> values1 = Arrays.asList("a", "x");
     Partition partition1 = new Partition()
@@ -451,7 +323,7 @@ public class AWSCatalogMetastoreClientTest {
     for (int i = 0; i < count; i++) {
       List<String> values = Arrays.asList("foo" + i);
       Partition partition = TestObjects.getTestPartition(testDB.getName(), testTable.getTableName(), values);
-      partitions.add(CatalogToHiveConverter.convertPartition(partition));
+      partitions.add(catalogToHiveConverter.convertPartition(partition));
     }
     return partitions;
   }
@@ -535,7 +407,7 @@ public class AWSCatalogMetastoreClientTest {
     Partition partition2 = getTestPartition(namespaceName, tableName, values2);
     List<Partition> partitions = Lists.newArrayList(partition1, partition2);
     List<org.apache.hadoop.hive.metastore.api.Partition> hivePartitions =
-        CatalogToHiveConverter.convertPartitions(partitions);
+        catalogToHiveConverter.convertPartitions(partitions);
 
     mockGetPartitionsSuccess(partitions);
     mockBatchDeleteSuccess();
@@ -589,7 +461,7 @@ public class AWSCatalogMetastoreClientTest {
     }
     Set<org.apache.hadoop.hive.metastore.api.Partition> hivePartitions = Sets.newHashSet();
     for (Partition partition : partitions) {
-      hivePartitions.add(CatalogToHiveConverter.convertPartition(partition));
+      hivePartitions.add(catalogToHiveConverter.convertPartition(partition));
     }
 
     mockGetPartitionsSuccess(partitions);
@@ -648,7 +520,7 @@ public class AWSCatalogMetastoreClientTest {
     Partition partition3 = getTestPartition(namespaceName, tableName, values3);
     List<Partition> partitions = Lists.newArrayList(partition1, partition2, partition3);
     List<org.apache.hadoop.hive.metastore.api.Partition> hivePartitions =
-        CatalogToHiveConverter.convertPartitions(partitions);
+        catalogToHiveConverter.convertPartitions(partitions);
 
     mockGetPartitionsSuccess(partitions);
     mockBatchDeleteThrowsException(new InternalServiceException("InternalServiceException"));
@@ -859,7 +731,7 @@ public class AWSCatalogMetastoreClientTest {
     when(wh.mkdirs(expectedDestPath.getParent(), true)).thenReturn(true);       
     
     metastoreClient.renamePartition(dbName, tblName, partitionValues,
-        CatalogToHiveConverter.convertPartition(newPartition));
+        catalogToHiveConverter.convertPartition(newPartition));
     
     // Verify catalog service is called , dest path's parent dirs are created and dfs rename is done
     verify(glueClient, times(1)).updatePartition(any(UpdatePartitionRequest.class));
@@ -904,7 +776,7 @@ public class AWSCatalogMetastoreClientTest {
     boolean exceptionThrown = false;
     try {
       metastoreClient.renamePartition(dbName, tblName, partitionValues,
-          CatalogToHiveConverter.convertPartition(newPartition));
+          catalogToHiveConverter.convertPartition(newPartition));
     } catch(InvalidOperationException e) {
       exceptionThrown = true;
     }
@@ -947,7 +819,7 @@ public class AWSCatalogMetastoreClientTest {
     when(fs.exists(expectedDestPath)).thenReturn(true);
         
     metastoreClient.renamePartition(dbName, tblName, partitionValues,
-        CatalogToHiveConverter.convertPartition(newPartition));
+        catalogToHiveConverter.convertPartition(newPartition));
   }
   
   @Test
@@ -974,7 +846,7 @@ public class AWSCatalogMetastoreClientTest {
       .thenReturn(new GetPartitionResult().withPartition(oldPartition));
 
     metastoreClient.renamePartition(dbName, externalTable.getName(), oldPartition.getValues(),
-        CatalogToHiveConverter.convertPartition(newPartition));
+        catalogToHiveConverter.convertPartition(newPartition));
     
     // Verify catalog service is called and no interactions with wh
     verify(glueClient, times(1)).updatePartition(any(UpdatePartitionRequest.class));
@@ -1005,7 +877,7 @@ public class AWSCatalogMetastoreClientTest {
       .thenReturn(new GetPartitionResult().withPartition(oldPartition));     
     
     metastoreClient.renamePartition(dbName, externalTable.getName(), oldPartition.getValues(),
-        CatalogToHiveConverter.convertPartition(newPartition));
+        catalogToHiveConverter.convertPartition(newPartition));
   }
   
   @Test(expected=InvalidOperationException.class)
@@ -1031,7 +903,7 @@ public class AWSCatalogMetastoreClientTest {
     doThrow(EntityNotFoundException.class).when(glueClient).getPartition(any(GetPartitionRequest.class));
     
     metastoreClient.renamePartition(dbName, externalTable.getName(), oldPartition.getValues(),
-        CatalogToHiveConverter.convertPartition(newPartition));
+        catalogToHiveConverter.convertPartition(newPartition));
   }
   
   @Test(expected=InvalidOperationException.class)
@@ -1058,7 +930,7 @@ public class AWSCatalogMetastoreClientTest {
       .thenReturn(new GetPartitionResult().withPartition(oldPartition));
 
     metastoreClient.renamePartition(dbName, externalTable.getName(), oldPartition.getValues(),
-        CatalogToHiveConverter.convertPartition(newPartition));
+        catalogToHiveConverter.convertPartition(newPartition));
   }
 
   @Test
@@ -1321,7 +1193,7 @@ public class AWSCatalogMetastoreClientTest {
   }
 
   // Statistics
-  @Test(expected=UnsupportedOperationException.class)
+  @Test
   public void testDeletePartitionColumnStatisticsValid() throws Exception {
     String databaseName = "database-name";
     String tableName = "table-name";
@@ -1331,7 +1203,7 @@ public class AWSCatalogMetastoreClientTest {
     metastoreClient.deletePartitionColumnStatistics(databaseName, tableName, partitionName, columnName);
   }
 
-  @Test(expected=UnsupportedOperationException.class)
+  @Test
   public void testDeleteTableColumnStatistics() throws Exception {
     String databaseName = "database-name";
     String tableName = "table-name";
@@ -1340,39 +1212,66 @@ public class AWSCatalogMetastoreClientTest {
     metastoreClient.deleteTableColumnStatistics(databaseName, tableName, columnName);
   }
 
-  @Test(expected=UnsupportedOperationException.class)
+  @Test
   public void testGetPartitionColumnStatisticsValid() throws Exception {
     String databaseName = "database-name";
     String tableName = "table-name";
     List<String> partitionNames = Arrays.asList("A=a/B=b", "A=x/B=y");
     List<String> columnNames = Arrays.asList("decimal-column", "string-column");
 
+    Future<GetColumnStatisticsForPartitionResult> future = mock(Future.class);
+    when(glueClient.getColumnStatisticsForPartition(any())).thenReturn(new GetColumnStatisticsForPartitionResult()
+        .withColumnStatisticsList(new ArrayList<>()));
     metastoreClient.getPartitionColumnStatistics(databaseName, tableName, partitionNames, columnNames);
+    verify(glueClient, times(2)).getColumnStatisticsForPartition(any());
   }
 
-  @Test(expected=UnsupportedOperationException.class)
+  @Test
   public void testGetTableColumnStatistics() throws Exception {
     String databaseName = "database-name";
     String tableName = "table-name";
     List<String> columnNames = Arrays.asList("decimal-column", "string-column");
 
+    when(glueClient.getColumnStatisticsForTable(any())).thenReturn(new GetColumnStatisticsForTableResult()
+        .withColumnStatisticsList(new ArrayList<>()));
     metastoreClient.getTableColumnStatistics(databaseName, tableName, columnNames);
+    verify(glueClient, times(1)).getColumnStatisticsForTable(any());
   }
 
-  @Test(expected=UnsupportedOperationException.class)
+  @Test
   public void testUpdatePartitionColumnStatistics() throws Exception {
     org.apache.hadoop.hive.metastore.api.ColumnStatistics columnStatistics =
         TestObjects.getHivePartitionColumnStatistics();
 
+    when(glueClient.updateColumnStatisticsForPartition(any())).thenReturn(new UpdateColumnStatisticsForPartitionResult());
     metastoreClient.updatePartitionColumnStatistics(columnStatistics);
+    verify(glueClient, times(1)).updateColumnStatisticsForPartition(any());
   }
 
-  @Test(expected=UnsupportedOperationException.class)
+  @Test
   public void testUpdateTableColumnStatistics() throws Exception {
     org.apache.hadoop.hive.metastore.api.ColumnStatistics columnStatistics =
         TestObjects.getHiveTableColumnStatistics();
 
+    when(glueClient.updateColumnStatisticsForTable(any())).thenReturn(new UpdateColumnStatisticsForTableResult());
     metastoreClient.updateTableColumnStatistics(columnStatistics);
+    verify(glueClient, times(1)).updateColumnStatisticsForTable(any());
+  }
+
+  @Test
+  public void testAlterTableCascade() throws TException {
+    String databaseName = "database-name";
+    String tableName = "table-name";
+    GlueMetastoreClientDelegate mockDelegate = mock(GlueMetastoreClientDelegate.class);
+    AWSCatalogMetastoreClient metaClient = new AWSCatalogMetastoreClient.Builder().withClientFactory(clientFactory)
+            .withWarehouse(wh).withGlueMetastoreClientDelegate(mockDelegate).createDefaults(false).withHiveConf(conf).build();
+    metaClient = spy(metaClient);
+
+    metaClient.alter_table(databaseName, tableName, testTable, true);
+
+    ArgumentCaptor<EnvironmentContext> captor = ArgumentCaptor.forClass(EnvironmentContext.class);
+    verify(mockDelegate).alterTable(any(), any(), any(), captor.capture());
+    assertEquals(StatsSetupConst.TRUE, captor.getValue().getProperties().get("CASCADE"));
   }
 
   private void assertDaemonThreadPools() {

@@ -19,7 +19,7 @@ public class ShimsLoaderTest {
 
   private static final String HIVE_1_2_VERSION = "1.2.1";
 
-  private static final String HIVE_2_VERSION = "2.1.1";
+  private static final String HIVE_3_VERSION = "3.1.3";
 
   @Before
   public void setup() throws ClassNotFoundException {
@@ -27,8 +27,8 @@ public class ShimsLoaderTest {
   }
 
   @Test
-  public void hive2ShimsClassSupportsCorrectVersion() {
-    assertTrue(AwsGlueHive2Shims.supportsVersion(HIVE_2_VERSION));
+  public void hive3ShimsClassSupportsCorrectVersion() {
+    assertTrue(AwsGlueHive3Shims.supportsVersion(HIVE_3_VERSION));
   }
 
   @Test
@@ -37,8 +37,8 @@ public class ShimsLoaderTest {
   }
 
   @Test
-  public void returnsCorrectShimsImplementationForHive2() {
-    assertGetsCorrectShimsClassForVersion(AwsGlueHive2Shims.class, HIVE_2_VERSION);
+  public void returnsCorrectShimsImplementationForHive3() {
+    assertGetsCorrectShimsClassForVersion(AwsGlueHive3Shims.class, HIVE_3_VERSION);
   }
 
   @Test

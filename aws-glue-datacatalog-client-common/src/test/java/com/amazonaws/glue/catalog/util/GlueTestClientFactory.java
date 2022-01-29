@@ -6,6 +6,7 @@ import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
+import com.amazonaws.glue.catalog.metastore.AWSGlueMultipleCatalogDecorator;
 import com.amazonaws.glue.catalog.metastore.GlueClientFactory;
 import com.amazonaws.retry.PredefinedRetryPolicies;
 import com.amazonaws.retry.RetryPolicy;
@@ -30,7 +31,9 @@ public final class GlueTestClientFactory implements GlueClientFactory {
       glueClientBuilder.setEndpointConfiguration(new EndpointConfiguration(endpoint, null));
     }
 
-    return glueClientBuilder.build();
+    //Create AWSGlueMultipleCatalogDecorator with empty separator to make sure that it's compatible with
+    //previous behaviour - all existing integration tests must be passed without any changes.
+    return new AWSGlueMultipleCatalogDecorator(glueClientBuilder.build(), null);
   }
 
   private static ClientConfiguration createGatewayTimeoutRetryableConfiguration() {

@@ -4,11 +4,14 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.EnvironmentContext;
+import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.plan.ExprNodeGenericFuncDesc;
 import org.apache.hadoop.hive.metastore.Warehouse;
+
+import java.util.List;
 
 public interface AwsGlueHiveShims {
   
@@ -19,10 +22,16 @@ public interface AwsGlueHiveShims {
   Path getDefaultTablePath(Database db, String tableName, Warehouse warehouse)
       throws MetaException;
 
+  boolean deleteDir(Warehouse wh, Path path, boolean recursive, boolean ifPurge) throws MetaException;
+
+  boolean mkdirs(Warehouse wh, Path path) throws MetaException;
+
   boolean validateTableName(String name, Configuration conf);
 
   boolean requireCalStats(Configuration conf, Partition oldPart, Partition newPart, Table tbl, EnvironmentContext environmentContext);
 
   boolean updateTableStatsFast(Database db, Table tbl, Warehouse wh, boolean madeDir, boolean forceRecompute, EnvironmentContext environmentContext)
       throws MetaException;
+
+  String validateTblColumns(List<FieldSchema> cols);
 }
