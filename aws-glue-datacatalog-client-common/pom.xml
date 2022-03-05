@@ -4,7 +4,7 @@
     <parent>
         <groupId>com.amazonaws.glue</groupId>
         <artifactId>aws-glue-datacatalog-hive-client</artifactId>
-        <version>1.10.0-aiq6</version>
+        <version>1.10.0-aiq7</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <name>AWSGlueDataCatalogClientCommon</name>
@@ -62,11 +62,6 @@
             <groupId>com.amazonaws.glue</groupId>
             <artifactId>shims-loader</artifactId>
             <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>${guava.version}</version>
         </dependency>
     </dependencies>
 
