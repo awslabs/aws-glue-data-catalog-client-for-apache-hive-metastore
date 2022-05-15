@@ -133,8 +133,14 @@ mvn clean install -DskipTests -Dmaven.javadoc.skip=true -Dhttps.protocols=TLSv1,
 ```
 
 # Tests
+Full tests are expensive to run and flaky
 ```
-mvn test -Dhttps.protocols=TLSv1,TLSv1.1,TLSv1.2
+mvn test -Dmaven.javadoc.skip=true -Dhttps.protocols=TLSv1,TLSv1.1,TLSv1.2
+```
+So you can run individual tests on the projects affected
+```
+cd aws-glue-datacatalog-spark-client/
+mvn test -Dmaven.javadoc.skip=true -Dhttps.protocols=TLSv1,TLSv1.1,TLSv1.2
 ```
 
 # Deploy
