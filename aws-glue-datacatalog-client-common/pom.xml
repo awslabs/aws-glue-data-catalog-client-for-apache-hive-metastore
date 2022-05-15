@@ -4,7 +4,7 @@
     <parent>
         <groupId>com.amazonaws.glue</groupId>
         <artifactId>aws-glue-datacatalog-hive-client</artifactId>
-        <version>1.10.0-aiq7</version>
+        <version>1.10.0-aiq8</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <name>AWSGlueDataCatalogClientCommon</name>

@@ -114,20 +114,34 @@ NOTE: The caching logic is disabled by default. Also, there is no one-size-fits-
 This library is licensed under the Apache 2.0 License. 
 
 
-========
-AIQ DEV
-========
-# set the version (bump to the next -aiq#)
+## AIQ DEV
+# Prereqs
+```
+brew install maven
+```
+
+# Version
+Bump to the next `-aiq#` version
+```
 mvn versions:set -DgenerateBackupPoms=false -Dhttps.protocols=TLSv1,TLSv1.1,TLSv1.2
+```
 
-# build, this places artifacts in ~/.m2/repository/com/amazonaws/glue/
+# Build
+This places artifacts in `~/.m2/repository/com/amazonaws/glue/`
+```
 mvn clean install -DskipTests -Dmaven.javadoc.skip=true -Dhttps.protocols=TLSv1,TLSv1.1,TLSv1.2
+```
 
-# run tests
+# Tests
+```
 mvn test -Dhttps.protocols=TLSv1,TLSv1.1,TLSv1.2
+```
 
-# to deploy to S3 at our bucket s3://s3.amazonaws.com/aiq-artifacts/ use:
+# Deploy
+To deploy to S3 at our bucket `s3://s3.amazonaws.com/aiq-artifacts`
+```
 mvn deploy -DskipTests -Dmaven.javadoc.skip=true -Dhttps.protocols=TLSv1,TLSv1.1,TLSv1.2
+```
 
-# Based off of https://nuvalence.io/blog/using-a-s3-bucket-as-a-maven-repository
-# NOTE we put the user/password in ~/.m2/settings.xml so it's not checked in
+Based off of https://nuvalence.io/blog/using-a-s3-bucket-as-a-maven-repository
+Note we put the user/password in ~/.m2/settings.xml so it's not checked in
