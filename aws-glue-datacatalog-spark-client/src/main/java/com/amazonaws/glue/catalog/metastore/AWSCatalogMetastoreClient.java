@@ -679,21 +679,20 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
   }
 
   @Override
+  public boolean dropPartition(String dbName, String tblName, String partitionName, boolean deleteData)
+      throws NoSuchObjectException, MetaException, TException {
+    List<String> values = partitionNameToVals(partitionName);
+    return glueMetastoreClientDelegate.dropPartition(dbName, tblName, values, false, deleteData, false);
+  }
+
+  @Override
   public List<org.apache.hadoop.hive.metastore.api.Partition> dropPartitions(
       String dbName,
       String tblName,
       List<ObjectPair<Integer, byte[]>> partExprs,
       boolean deleteData,
-      boolean ifExists
-  ) throws NoSuchObjectException, MetaException, TException {
-    throw new UnsupportedOperationException("dropPartitions is not supported");
-  }
-
-  @Override
-  public boolean dropPartition(String dbName, String tblName, String partitionName, boolean deleteData)
-      throws NoSuchObjectException, MetaException, TException {
-    List<String> values = partitionNameToVals(partitionName);
-    return glueMetastoreClientDelegate.dropPartition(dbName, tblName, values, false, deleteData, false);
+      boolean ifExists) throws NoSuchObjectException, MetaException, TException {
+    return dropPartitions_core(dbName, tblName, partExprs, deleteData, false);
   }
 
   @Override
@@ -1553,11 +1552,8 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
   }
 
   @Override
-  public boolean cacheFileMetadata(
-    String dbName,
-    String tblName,
-    String partName,
-    boolean allParts) throws TException {
+  public boolean cacheFileMetadata(String dbName, String tblName, String partName, boolean allParts)
+      throws TException {
     return glueMetastoreClientDelegate.cacheFileMetadata(dbName, tblName, partName, allParts);
   }
 
