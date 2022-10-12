@@ -133,10 +133,6 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
   private final AwsGlueHiveShims hiveShims = ShimsLoader.getHiveShims();
   private Map<String, String> currentMetaVars;
 
-  public AWSCatalogMetastoreClient(HiveConf conf) throws MetaException {
-    this(conf, null);
-  }
-
   public AWSCatalogMetastoreClient(HiveConf conf, HiveMetaHookLoader hook) throws MetaException {
     this.conf = conf;
     glueClient = new AWSGlueClientFactory(this.conf).newClient();
@@ -145,7 +141,8 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
     // TODO preserve existing functionality for HiveMetaHook
     wh = new Warehouse(this.conf);
 
-    glueMetastoreClientDelegate = new GlueMetastoreClientDelegate(this.conf, glueClient, wh);
+    AWSGlueMetastore glueMetastore = new AWSGlueMetastoreFactory().newMetastore(conf);
+    glueMetastoreClientDelegate = new GlueMetastoreClientDelegate(this.conf, glueMetastore, wh);
 
     snapshotActiveConf();
     if (!doesDefaultDBExist()) {
@@ -162,6 +159,7 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
     private HiveConf conf;
     private Warehouse wh;
     private GlueClientFactory clientFactory;
+    private AWSGlueMetastoreFactory metastoreFactory;
     private boolean createDefaults = true;
     private String catalogId;
     private GlueMetastoreClientDelegate glueMetastoreClientDelegate;
@@ -173,6 +171,11 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
 
     public Builder withClientFactory(GlueClientFactory clientFactory) {
       this.clientFactory = clientFactory;
+      return this;
+    }
+
+    public Builder withMetastoreFactory(AWSGlueMetastoreFactory metastoreFactory) {
+      this.metastoreFactory = metastoreFactory;
       return this;
     }
 
@@ -218,8 +221,11 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
     }
 
     GlueClientFactory clientFactory = Objects.firstNonNull(builder.clientFactory, new AWSGlueClientFactory(conf));
+    AWSGlueMetastoreFactory metastoreFactory = Objects.firstNonNull(builder.metastoreFactory,
+            new AWSGlueMetastoreFactory());
     glueClient = clientFactory.newClient();
-    glueMetastoreClientDelegate = Objects.firstNonNull(builder.glueMetastoreClientDelegate, new GlueMetastoreClientDelegate(this.conf, glueClient, wh));
+    AWSGlueMetastore glueMetastore = metastoreFactory.newMetastore(conf);
+    glueMetastoreClientDelegate = new GlueMetastoreClientDelegate(this.conf, glueMetastore, wh);
 
     /**
      * It seems weird to create databases as part of glueClient construction. This

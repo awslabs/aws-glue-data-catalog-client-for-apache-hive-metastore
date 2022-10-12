@@ -22,10 +22,10 @@ import com.amazonaws.services.glue.model.DeletePartitionResult;
 import com.amazonaws.services.glue.model.EntityNotFoundException;
 import com.amazonaws.services.glue.model.ErrorDetail;
 import com.amazonaws.services.glue.model.GetColumnStatisticsForPartitionResult;
-import com.amazonaws.services.glue.model.GetColumnStatisticsForTableRequest;
 import com.amazonaws.services.glue.model.GetColumnStatisticsForTableResult;
 import com.amazonaws.services.glue.model.GetDatabaseRequest;
 import com.amazonaws.services.glue.model.GetDatabaseResult;
+import com.amazonaws.services.glue.model.GetDatabasesRequest;
 import com.amazonaws.services.glue.model.GetPartitionRequest;
 import com.amazonaws.services.glue.model.GetPartitionResult;
 import com.amazonaws.services.glue.model.GetPartitionsRequest;
@@ -44,11 +44,10 @@ import com.amazonaws.services.glue.model.Partition;
 import com.amazonaws.services.glue.model.PartitionError;
 import com.amazonaws.services.glue.model.StorageDescriptor;
 import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.glue.model.UpdateColumnStatisticsForPartitionRequest;
 import com.amazonaws.services.glue.model.UpdateColumnStatisticsForPartitionResult;
-import com.amazonaws.services.glue.model.UpdateColumnStatisticsForTableRequest;
 import com.amazonaws.services.glue.model.UpdateColumnStatisticsForTableResult;
 import com.amazonaws.services.glue.model.UpdatePartitionRequest;
+import com.amazonaws.services.glue.model.UserDefinedFunction;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -62,6 +61,7 @@ import org.apache.hadoop.hive.metastore.Warehouse;
 import org.apache.hadoop.hive.metastore.api.EnvironmentContext;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Function;
+import org.apache.hadoop.hive.metastore.api.GetAllFunctionsResponse;
 import org.apache.hadoop.hive.metastore.api.InvalidObjectException;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
@@ -106,7 +106,6 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -122,6 +121,7 @@ public class AWSCatalogMetastoreClientTest {
   private AWSCatalogMetastoreClient metastoreClient;
   private Warehouse wh;
   private Configuration conf;
+  private AWSGlueMetastoreFactory metastoreFactory;
   private GlueClientFactory clientFactory;
   private final AwsGlueHiveShims hiveShims = ShimsLoader.getHiveShims();
   private CatalogToHiveConverter catalogToHiveConverter = new Hive3CatalogToHiveConverter();
@@ -131,6 +131,9 @@ public class AWSCatalogMetastoreClientTest {
   private org.apache.hadoop.hive.metastore.api.Table testTable;
   private org.apache.hadoop.hive.metastore.api.Partition testPartition;
   private org.apache.hadoop.hive.metastore.api.Function testFunction;
+
+  private UserDefinedFunction catalogTestFunction;
+
   private Path defaultWhPath;
   private Path partitionPath;
 
@@ -140,7 +143,11 @@ public class AWSCatalogMetastoreClientTest {
     testTable = catalogToHiveConverter.convertTable(getTestTable(), testDB.getName());
     testPartition = catalogToHiveConverter.convertPartition(
         getTestPartition(testDB.getName(), testTable.getTableName(), Lists.newArrayList("val1")));
-    testFunction = catalogToHiveConverter.convertFunction(testDB.getName(), getCatalogTestFunction());
+
+    catalogTestFunction = getCatalogTestFunction();
+    catalogTestFunction.setDatabaseName(testDB.getName());
+    testFunction = catalogToHiveConverter.convertFunction(testDB.getName(), catalogTestFunction);
+
     defaultWhPath = new Path("/tmp");
     partitionPath = new Path(testPartition.getSd().getLocation());
 
@@ -152,9 +159,12 @@ public class AWSCatalogMetastoreClientTest {
     conf.setInt(GlueMetastoreClientDelegate.NUM_PARTITION_SEGMENTS_CONF, 1);
     glueClient = spy(AWSGlue.class);
     clientFactory = mock(GlueClientFactory.class);
+    metastoreFactory = mock(AWSGlueMetastoreFactory.class);
     when(clientFactory.newClient()).thenReturn(glueClient);
+    DefaultAWSGlueMetastore defaultAWSGlueMetastore = new DefaultAWSGlueMetastore(conf, glueClient);
+    when(metastoreFactory.newMetastore(conf)).thenReturn(defaultAWSGlueMetastore);
     metastoreClient = new AWSCatalogMetastoreClient.Builder().withClientFactory(clientFactory)
-        .withWarehouse(wh).createDefaults(false).withConf(conf).build();
+            .withMetastoreFactory(metastoreFactory).withWarehouse(wh).createDefaults(false).withConf(conf).build();
   }
 
   private void setupMockWarehouseForPath(Path path, boolean isDir, boolean isDefaultDbPath) throws MetaException {
@@ -170,7 +180,7 @@ public class AWSCatalogMetastoreClientTest {
   public void testDefaultNamespaceCreation() throws Exception {
     doThrow(new EntityNotFoundException("")).when(glueClient).getDatabase(any(GetDatabaseRequest.class));
     metastoreClient = new AWSCatalogMetastoreClient.Builder().withClientFactory(clientFactory)
-        .withWarehouse(wh).createDefaults(true).withConf(conf).build();
+            .withMetastoreFactory(metastoreFactory).withWarehouse(wh).createDefaults(true).withConf(conf).build();
 
     verify(glueClient, times(1)).createDatabase(any(CreateDatabaseRequest.class));
     verify(wh, times(1)).getDefaultDatabasePath(DEFAULT_DATABASE_NAME);
@@ -1068,6 +1078,21 @@ public class AWSCatalogMetastoreClientTest {
   }
 
   @Test
+  public void testGetAllFunctionsValid() throws Exception {
+    when(glueClient.getUserDefinedFunctions(any(GetUserDefinedFunctionsRequest.class)))
+            .thenReturn(new GetUserDefinedFunctionsResult()
+                    .withUserDefinedFunctions(catalogTestFunction)
+                    .withNextToken("token"))
+            .thenReturn(new GetUserDefinedFunctionsResult().withUserDefinedFunctions(getCatalogTestFunction()));
+    GetAllFunctionsResponse getAllFunctionsResponse = metastoreClient.getAllFunctions();
+
+    verify(glueClient, never()).getDatabases(any(GetDatabasesRequest.class));
+    verify(glueClient, times(2)).getUserDefinedFunctions(any(GetUserDefinedFunctionsRequest.class));
+    assertEquals(2, getAllFunctionsResponse.getFunctionsSize());
+    assertEquals(testFunction, getAllFunctionsResponse.getFunctions().get(0));
+  }
+
+  @Test
   public void testGetMetaConfDefault() throws TException {
     MetastoreConf.ConfVars metaConfVar = MetastoreConf.ConfVars.TRY_DIRECT_SQL;
     String expected = metaConfVar.getDefaultVal().toString();
@@ -1268,7 +1293,7 @@ public class AWSCatalogMetastoreClientTest {
     assertTrue(isPartitionColumnStatisticsSet);
   }
 
-  @Test
+  @Test(expected=UnsupportedOperationException.class)
   public void testAlterTableCascade() throws TException {
     String databaseName = "database-name";
     String tableName = "table-name";
