@@ -155,7 +155,8 @@ public class AWSCatalogMetastoreClientTest {
     clientFactory = mock(GlueClientFactory.class);
     metastoreFactory = mock(AWSGlueMetastoreFactory.class);
     when(clientFactory.newClient()).thenReturn(glueClient);
-    when(metastoreFactory.newMetastore(conf)).thenReturn(new DefaultAWSGlueMetastore(conf, glueClient));
+    DefaultAWSGlueMetastore defaultMetastore = new DefaultAWSGlueMetastore(conf, glueClient);
+    when(metastoreFactory.newMetastore(conf)).thenReturn(defaultMetastore);
     metastoreClient = new AWSCatalogMetastoreClient.Builder().withClientFactory(clientFactory)
         .withMetastoreFactory(metastoreFactory).withWarehouse(wh).createDefaults(false).withHiveConf(conf).build();
   }
