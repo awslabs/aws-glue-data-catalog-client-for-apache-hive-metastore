@@ -1,0 +1,26 @@
+# Compiled class file
+*.class
+
+# Log file
+*.log
+*.iml
+
+# Package Files #
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+/hive/
+/aws-glue-datacatalog-spark-client/target/
+/aws-glue-datacatalog-hive3-client/target/
+/aws-glue-datacatalog-client-common/target/
+/shims/common/target/
+/shims/hive3-shims/target/
+/shims/loader/target/
+/shims/spark-hive-shims/target/
+/.idea/
+/shims/target/
+/target/

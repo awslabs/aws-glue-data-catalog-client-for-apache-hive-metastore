@@ -22,7 +22,6 @@ import com.amazonaws.services.glue.model.DeletePartitionResult;
 import com.amazonaws.services.glue.model.EntityNotFoundException;
 import com.amazonaws.services.glue.model.ErrorDetail;
 import com.amazonaws.services.glue.model.GetColumnStatisticsForPartitionResult;
-import com.amazonaws.services.glue.model.GetColumnStatisticsForTableRequest;
 import com.amazonaws.services.glue.model.GetColumnStatisticsForTableResult;
 import com.amazonaws.services.glue.model.GetDatabaseRequest;
 import com.amazonaws.services.glue.model.GetDatabaseResult;
@@ -44,10 +43,7 @@ import com.amazonaws.services.glue.model.Partition;
 import com.amazonaws.services.glue.model.PartitionError;
 import com.amazonaws.services.glue.model.StorageDescriptor;
 import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.glue.model.TableInput;
-import com.amazonaws.services.glue.model.UpdateColumnStatisticsForPartitionRequest;
 import com.amazonaws.services.glue.model.UpdateColumnStatisticsForPartitionResult;
-import com.amazonaws.services.glue.model.UpdateColumnStatisticsForTableRequest;
 import com.amazonaws.services.glue.model.UpdateColumnStatisticsForTableResult;
 import com.amazonaws.services.glue.model.UpdatePartitionRequest;
 import com.google.common.collect.ImmutableList;
@@ -123,6 +119,7 @@ public class AWSCatalogMetastoreClientTest {
   private Warehouse wh;
   private HiveConf conf;
   private GlueClientFactory clientFactory;
+  private AWSGlueMetastoreFactory metastoreFactory;
   private final AwsGlueHiveShims hiveShims = ShimsLoader.getHiveShims();
   private CatalogToHiveConverter catalogToHiveConverter = new BaseCatalogToHiveConverter();
 
@@ -152,9 +149,12 @@ public class AWSCatalogMetastoreClientTest {
     conf.setInt(GlueMetastoreClientDelegate.NUM_PARTITION_SEGMENTS_CONF, 1);
     glueClient = spy(AWSGlue.class);
     clientFactory = mock(GlueClientFactory.class);
+    metastoreFactory = mock(AWSGlueMetastoreFactory.class);
     when(clientFactory.newClient()).thenReturn(glueClient);
+    DefaultAWSGlueMetastore defaultAWSGlueMetastore = new DefaultAWSGlueMetastore(conf, glueClient);
+    when(metastoreFactory.newMetastore(conf)).thenReturn(defaultAWSGlueMetastore);
     metastoreClient = new AWSCatalogMetastoreClient.Builder().withClientFactory(clientFactory)
-        .withWarehouse(wh).createDefaults(false).withHiveConf(conf).build();
+            .withMetastoreFactory(metastoreFactory).withWarehouse(wh).createDefaults(false).withHiveConf(conf).build();
   }
 
   private void setupMockWarehouseForPath(Path path, boolean isDir, boolean isDefaultDbPath) throws MetaException {
@@ -172,7 +172,7 @@ public class AWSCatalogMetastoreClientTest {
 
     when(conf.getVar(conf, ConfVars.USERS_IN_ADMIN_ROLE, "")).thenReturn("");
     metastoreClient = new AWSCatalogMetastoreClient.Builder().withClientFactory(clientFactory)
-        .withWarehouse(wh).createDefaults(true).withHiveConf(conf).build();
+            .withMetastoreFactory(metastoreFactory).withWarehouse(wh).createDefaults(true).withHiveConf(conf).build();
 
     verify(glueClient, times(1)).createDatabase(any(CreateDatabaseRequest.class));
     verify(wh, times(1)).getDefaultDatabasePath(DEFAULT_DATABASE_NAME);
@@ -1258,7 +1258,7 @@ public class AWSCatalogMetastoreClientTest {
     verify(glueClient, times(1)).updateColumnStatisticsForTable(any());
   }
 
-  @Test
+  @Test(expected=UnsupportedOperationException.class)
   public void testAlterTableCascade() throws TException {
     String databaseName = "database-name";
     String tableName = "table-name";

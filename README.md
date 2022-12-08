@@ -5,7 +5,7 @@ AWS Glue provides out-of-box integration with Amazon EMR that enables customers 
 
 This is an open-source implementation of the Apache Hive Metastore client on Amazon EMR clusters that uses the AWS Glue Data Catalog as an external Hive Metastore. It serves as a reference implementation for building a Hive Metastore-compatible client that connects to the AWS Glue Data Catalog. It may be ported to other Hive Metastore-compatible platforms such as other Hadoop and Apache Spark distributions.
 
-This package is compatible with Spark 3 and Hive 3
+This package is compatible with Spark 3 and Hive 3.
 
 **Note**: in order for this client implementation to be used with Apache Hive, a patch included in this [JIRA](https://issues.apache.org/jira/browse/HIVE-12679) must be applied to it. All versions of Apache Hive running on Amazon EMR that support the AWS Glue Data Catalog as the metastore already include this patch.
 
@@ -15,7 +15,7 @@ Obtain a copy of Hive from GitHub at https://github.com/apache/hive.
 
 	git clone https://github.com/apache/hive.git
 
-To build the Hive client, you need to first apply this [patch](https://github.com/awslabs/aws-glue-data-catalog-client-for-apache-hive-metastore/blob/Updated_connector/branch_3.1.patch).  Download this patch and move it to your local Hive git repository you created above.  Apply the patch and build Hive.
+To build the Hive client, you need to first apply this [patch](https://github.com/awslabs/aws-glue-data-catalog-client-for-apache-hive-metastore/blob/branch-3.4.0/branch_3.1.patch).  Download this patch and move it to your local Hive git repository you created above. This patch is included in the repository. Apply the patch and build Hive.
 
 	git checkout branch-3.1
 	git apply -3 ~/branch_3.1.patch
@@ -29,7 +29,7 @@ Once you have successfully patched and installed Hive locally, move into the AWS
 
 You are now ready to build the Hive client.
 
-    cd aws-glue-datacatalog-hive2-client
+    cd aws-glue-datacatalog-hive3-client
     mvn clean package -DskipTests
 
 
@@ -66,6 +66,47 @@ You need to ensure that the AWS Glue Data Catalog Client jar is in Hive's CLASSP
 ## Configuring Spark to Use the Spark Client
 
 Similarly, for Spark, you need to install the client jar in Spark's CLASSPATH and create or update Spark's own hive-site.xml to add the above property.  On Amazon EMR, this is set in /usr/lib/spark/conf/hive-site.xml.  You can also find the location of the Spark client jar in /usr/lib/spark/conf/spark-defaults.conf.
+
+## Enabling client side caching for catalog
+
+Currently, we provide support for caching:
+
+a) Table metadata - Response from Glue's GetTable operation (https://docs.aws.amazon.com/glue/latest/webapi/API_GetTable.html#API_GetTable_ResponseSyntax)
+b) Database metadata - Response from Glue's GetDatabase operation (https://docs.aws.amazon.com/glue/latest/webapi/API_GetDatabase.html#API_GetDatabase_ResponseSyntax)
+
+Both these entities have dedicated caches for themselves and can be enabled/tuned individually.
+
+To enable/tune Table cache, use the following properties in your hive/spark configuration file:
+
+	<property>
+ 		<name>aws.glue.cache.table.enable</name>
+ 		<value>true</value>
+	</property>
+	<property>
+ 		<name>aws.glue.cache.table.size</name>
+ 		<value>1000</value>
+	</property>
+	<property>
+ 		<name>aws.glue.cache.table.ttl-mins</name>
+ 		<value>30</value>
+	</property>
+
+To enable/tune Database cache:
+
+	<property>
+ 		<name>aws.glue.cache.db.enable</name>
+ 		<value>true</value>
+	</property>
+	<property>
+ 		<name>aws.glue.cache.db.size</name>
+ 		<value>1000</value>
+	</property>
+	<property>
+ 		<name>aws.glue.cache.db.ttl-mins</name>
+ 		<value>30</value>
+	</property>
+
+NOTE: The caching logic is disabled by default.
 
 ## License
 

@@ -71,7 +71,7 @@ public final class GlueInputConverter {
     return partitionInput;
   }
 
-  public static Collection<PartitionInput> convertToPartitionInputs(Collection<com.amazonaws.services.glue.model.Partition> parts) {
+  public static List<PartitionInput> convertToPartitionInputs(Collection<com.amazonaws.services.glue.model.Partition> parts) {
     List<PartitionInput> inputList = new ArrayList<>();
 
     for (com.amazonaws.services.glue.model.Partition part : parts) {

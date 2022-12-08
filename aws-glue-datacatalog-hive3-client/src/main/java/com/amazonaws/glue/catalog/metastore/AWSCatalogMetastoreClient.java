@@ -14,18 +14,14 @@ import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.AlreadyExistsException;
 import com.amazonaws.services.glue.model.EntityNotFoundException;
 import com.amazonaws.services.glue.model.GetDatabaseRequest;
-import com.amazonaws.services.glue.model.GetUserDefinedFunctionsRequest;
-import com.amazonaws.services.glue.model.GetUserDefinedFunctionsResult;
 import com.amazonaws.services.glue.model.Partition;
 import com.amazonaws.services.glue.model.UpdatePartitionRequest;
-import com.amazonaws.services.glue.model.UserDefinedFunction;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -45,6 +41,7 @@ import org.apache.hadoop.hive.metastore.api.CheckConstraintsRequest;
 import org.apache.hadoop.hive.metastore.api.CmRecycleRequest;
 import org.apache.hadoop.hive.metastore.api.CmRecycleResponse;
 import org.apache.hadoop.hive.metastore.api.ColumnStatisticsObj;
+import org.apache.hadoop.hive.metastore.api.CompactionResponse;
 import org.apache.hadoop.hive.metastore.api.CompactionType;
 import org.apache.hadoop.hive.metastore.api.ConfigValSecurityException;
 import org.apache.hadoop.hive.metastore.api.CreationMetadata;
@@ -123,7 +120,6 @@ import org.apache.hadoop.hive.metastore.api.WMResourcePlan;
 import org.apache.hadoop.hive.metastore.api.WMTrigger;
 import org.apache.hadoop.hive.metastore.api.WMValidateResourcePlanResponse;
 import org.apache.hadoop.hive.metastore.api.hive_metastoreConstants;
-import org.apache.hadoop.hive.metastore.api.CompactionResponse;
 import org.apache.hadoop.hive.metastore.conf.MetastoreConf;
 import org.apache.hadoop.hive.metastore.partition.spec.PartitionSpecProxy;
 import org.apache.hadoop.hive.metastore.utils.MetaStoreUtils;
@@ -134,7 +130,6 @@ import org.apache.thrift.TException;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -175,10 +170,6 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
   private Map<String, String> currentMetaVars;
   private final AwsGlueHiveShims hiveShims = ShimsLoader.getHiveShims();
 
-  public AWSCatalogMetastoreClient(Configuration conf) throws MetaException {
-    this(conf, null);
-  }
-
   public AWSCatalogMetastoreClient(Configuration conf, HiveMetaHookLoader hook) throws MetaException {
     this.conf = conf;
     glueClient = new AWSGlueClientFactory(this.conf).newClient();
@@ -187,7 +178,8 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
     // TODO preserve existing functionality for HiveMetaHook
     wh = new Warehouse(this.conf);
 
-    glueMetastoreClientDelegate = new GlueMetastoreClientDelegate(this.conf, glueClient, wh);
+    AWSGlueMetastore glueMetastore = new AWSGlueMetastoreFactory().newMetastore(conf);
+    glueMetastoreClientDelegate = new GlueMetastoreClientDelegate(this.conf, glueMetastore, wh);
 
     snapshotActiveConf();
     if (!doesDefaultDBExist()) {
@@ -204,6 +196,7 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
     private Configuration conf;
     private Warehouse wh;
     private GlueClientFactory clientFactory;
+    private AWSGlueMetastoreFactory metastoreFactory;
     private boolean createDefaults = true;
     private String catalogId;
     private GlueMetastoreClientDelegate glueMetastoreClientDelegate;
@@ -215,6 +208,11 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
 
     public Builder withClientFactory(GlueClientFactory clientFactory) {
       this.clientFactory = clientFactory;
+      return this;
+    }
+
+    public Builder withMetastoreFactory(AWSGlueMetastoreFactory metastoreFactory) {
+      this.metastoreFactory = metastoreFactory;
       return this;
     }
 
@@ -260,8 +258,12 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
     }
 
     GlueClientFactory clientFactory = MoreObjects.firstNonNull(builder.clientFactory, new AWSGlueClientFactory(conf));
+    AWSGlueMetastoreFactory metastoreFactory = MoreObjects.firstNonNull(builder.metastoreFactory,
+            new AWSGlueMetastoreFactory());
+
     glueClient = clientFactory.newClient();
-    glueMetastoreClientDelegate = MoreObjects.firstNonNull(builder.glueMetastoreClientDelegate, new GlueMetastoreClientDelegate(this.conf, glueClient, wh));
+    AWSGlueMetastore glueMetastore = metastoreFactory.newMetastore(conf);
+    glueMetastoreClientDelegate = new GlueMetastoreClientDelegate(this.conf, glueMetastore, wh);
 
     /**
      * It seems weird to create databases as part of client construction. This

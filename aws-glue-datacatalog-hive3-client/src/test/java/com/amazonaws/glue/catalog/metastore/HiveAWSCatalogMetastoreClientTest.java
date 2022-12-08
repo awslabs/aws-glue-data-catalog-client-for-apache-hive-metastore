@@ -3,14 +3,10 @@ package com.amazonaws.glue.catalog.metastore;
 import com.amazonaws.glue.catalog.converters.CatalogToHiveConverter;
 import com.amazonaws.glue.catalog.converters.Hive3CatalogToHiveConverter;
 import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.GetDatabasesRequest;
-import com.amazonaws.services.glue.model.GetUserDefinedFunctionsRequest;
-import com.amazonaws.services.glue.model.GetUserDefinedFunctionsResult;
 import com.amazonaws.services.glue.model.UserDefinedFunction;
 import org.apache.commons.lang.RandomStringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.metastore.api.ForeignKeysRequest;
-import org.apache.hadoop.hive.metastore.api.GetAllFunctionsResponse;
 import org.apache.hadoop.hive.metastore.api.PrimaryKeysRequest;
 import org.apache.hadoop.hive.metastore.conf.MetastoreConf;
 import org.junit.Before;
@@ -20,12 +16,8 @@ import static com.amazonaws.glue.catalog.util.TestObjects.getCatalogTestFunction
 import static com.amazonaws.glue.catalog.util.TestObjects.getTestDatabase;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class HiveAWSCatalogMetastoreClientTest {
@@ -56,20 +48,6 @@ public class HiveAWSCatalogMetastoreClientTest {
     when(clientFactory.newClient()).thenReturn(glueClient);
     metastoreClient = new AWSCatalogMetastoreClient.Builder().withClientFactory(clientFactory)
         .createDefaults(false).withConf(conf).withCatalogId(catalogId).build();
-  }
-
-  @Test
-  public void testGetAllFunctions() throws Exception {
-    when(glueClient.getUserDefinedFunctions(any(GetUserDefinedFunctionsRequest.class)))
-        .thenReturn(new GetUserDefinedFunctionsResult().withUserDefinedFunctions(catalogTestFunction)
-            .withNextToken("nexttoken"))
-        .thenReturn(new GetUserDefinedFunctionsResult().withUserDefinedFunctions(catalogTestFunction));
-
-    GetAllFunctionsResponse getAllFunctionsResponse = metastoreClient.getAllFunctions();
-    verify(glueClient, never()).getDatabases(any(GetDatabasesRequest.class));
-    verify(glueClient, times(2)).getUserDefinedFunctions(any(GetUserDefinedFunctionsRequest.class));
-    assertEquals(2, getAllFunctionsResponse.getFunctionsSize());
-    assertEquals(testFunction, getAllFunctionsResponse.getFunctions().get(0));
   }
 
   @Test
