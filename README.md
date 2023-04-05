@@ -7,7 +7,7 @@ This is an open-source implementation of the Apache Hive Metastore client on Ama
 
 This package is compatible with Spark 3 and Hive 3.
 
-**Note**: in order for this client implementation to be used with Apache Hive, a patch included in this [JIRA](https://issues.apache.org/jira/browse/HIVE-12679) must be applied to it. All versions of Apache Hive running on Amazon EMR that support the AWS Glue Data Catalog as the metastore already include this patch.
+**Note**: in order for this client implementation to be used with Apache Hive, a patch included in this [JIRA](https://issues.apache.org/jira/browse/HIVE-12679) must be applied to it. All versions of Apache Hive running on Amazon EMR that support the AWS Glue Data Catalog as the metastore already include this patch. Please follow **all steps listed below in the following order**.
 
 ## Patching Apache Hive and Installing It Locally
 
@@ -17,42 +17,43 @@ Obtain a copy of Hive from GitHub at https://github.com/apache/hive.
 
 To build the Hive client, you need to first apply this [patch](https://github.com/awslabs/aws-glue-data-catalog-client-for-apache-hive-metastore/blob/branch-3.4.0/branch_3.1.patch).  Download this patch and move it to your local Hive git repository you created above. This patch is included in the repository. Apply the patch and build Hive.
 
-	git checkout branch-3.1
-	git apply -3 ~/branch_3.1.patch
+    cd <your local Hive repo>	
+    git checkout branch-3.1
+	git apply -3 branch_3.1.patch
 	mvn clean install -DskipTests
 
-## Building the Hive Client
-
-Once you have successfully patched and installed Hive locally, move into the AWS Glue Data Catalog Client repository and update the following property in pom.xml.
-
-	<hive3.version>3.1.3</hive3.version>
-
-You are now ready to build the Hive client.
-
-    cd aws-glue-datacatalog-hive3-client
-    mvn clean package -DskipTests
-
-
-## Building the Spark Client
-
 As Spark uses a fork of Hive based off the 2.3 branch, in order to build the Spark client, you need Hive 2.3 built with this [patch](https://issues.apache.org/jira/secure/attachment/12958418/HIVE-12679.branch-2.3.patch).
+
+If building off the previous Hive repo, please reset those changes:
+
+    git add .
+    git reset --hard
+
+Continue with patching the 2.3 branch:
 
 	cd <your local Hive repo>
 	git checkout branch-2.3
     patch -p0 <HIVE-12679.branch-2.3.patch
     mvn clean install -DskipTests
 
+## Building the Glue Data Catalog Client
 
-Go back to the AWS Glue Data Catalog Client repository and update the following property in pom.xml to match the version of Hive you just patched and installed locally.
+When building for the first time, all clients must be built from the root directory of the AWS Glue Data Catalog Client repository. This will build both the Hive and Spark clients and necessary dependencies.
 
-	<spark-hive.version>2.3.10-SNAPSHOT</spark-hive.version>
+    cd aws-glue-data-catalog-client-for-apache-hive-metastore
+    mvn clean install -DskipTests
 
-You are now ready to build the Spark client.
+Once this is done, the individual clients are free to be built separately:
+
+To build the Spark client:
 
     cd aws-glue-datacatalog-spark-client
     mvn clean package -DskipTests
 
-If you are having issues with building individual folders and if you have both versions of Hive patched and installed locally, you can build both of these clients from the root directory of the AWS Glue Data Catalog Client repository.
+To build the Hive client:
+
+    cd aws-glue-datacatalog-hive3-client
+    mvn clean package -DskipTests
 
 ## Configuring Hive to Use the Hive Client
 
