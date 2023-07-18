@@ -172,6 +172,7 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
 
   public AWSCatalogMetastoreClient(Configuration conf, HiveMetaHookLoader hook) throws MetaException {
     this.conf = conf;
+    catalogId = MetastoreClientUtils.getCatalogId(conf);
     glueClient = new AWSGlueClientFactory(this.conf).newClient();
     catalogToHiveConverter = new Hive3CatalogToHiveConverter();
 
@@ -185,7 +186,6 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
     if (!doesDefaultDBExist()) {
       createDefaultDatabase();
     }
-    catalogId = MetastoreClientUtils.getCatalogId(conf);
   }
 
   /**
