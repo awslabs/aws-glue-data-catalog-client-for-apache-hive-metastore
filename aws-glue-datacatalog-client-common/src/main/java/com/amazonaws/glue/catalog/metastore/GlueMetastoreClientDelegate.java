@@ -1261,7 +1261,7 @@ public class GlueMetastoreClientDelegate {
   }
 
   public String getTokenStrForm() throws IOException {
-    throw new UnsupportedOperationException("getTokenStrForm is not supported");
+    return null;
   }
 
   public boolean addToken(String tokenIdentifier, String delegationToken) throws TException {
