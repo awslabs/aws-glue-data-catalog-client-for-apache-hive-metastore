@@ -2,6 +2,8 @@ package com.amazonaws.glue.catalog.metastore;
 
 import com.amazonaws.services.glue.model.Database;
 import com.amazonaws.services.glue.model.Table;
+import com.amazonaws.services.glue.model.DatabaseInput;
+import com.amazonaws.services.glue.model.TableInput;
 import com.google.common.cache.Cache;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.Before;
@@ -16,7 +18,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.junit.Assert.assertTrue;
 
 import static com.amazonaws.glue.catalog.util.AWSGlueConfig.AWS_GLUE_DB_CACHE_ENABLE;
 import static com.amazonaws.glue.catalog.util.AWSGlueConfig.AWS_GLUE_TABLE_CACHE_ENABLE;
@@ -45,7 +46,6 @@ public class AWSGlueMetastoreCacheDecoratorTest {
         when(hiveConf.getInt(AWS_GLUE_TABLE_CACHE_TTL_MINS, 0)).thenReturn(100);
         when(hiveConf.getInt(AWS_GLUE_DB_CACHE_SIZE, 0)).thenReturn(100);
         when(hiveConf.getInt(AWS_GLUE_DB_CACHE_TTL_MINS, 0)).thenReturn(100);
-
     }
 
     @Test(expected = NullPointerException.class)
@@ -79,12 +79,12 @@ public class AWSGlueMetastoreCacheDecoratorTest {
 
     @Test
     public void testGetDatabaseWhenCacheDisabled() {
-        //disable cache
         when(hiveConf.getBoolean(AWS_GLUE_DB_CACHE_ENABLE, false)).thenReturn(false);
         Database db = new Database();
         AWSGlueMetastoreCacheDecorator cacheDecorator =
                 new AWSGlueMetastoreCacheDecorator(hiveConf, glueMetastore);
         when(glueMetastore.getDatabase(DB_NAME)).thenReturn(db);
+
         assertEquals(db, cacheDecorator.getDatabase(DB_NAME));
         assertNull(cacheDecorator.databaseCache);
         verify(glueMetastore, times(1)).getDatabase(DB_NAME);
@@ -127,13 +127,47 @@ public class AWSGlueMetastoreCacheDecoratorTest {
     }
 
     @Test
+    public void testCreateDatabase() {
+        DatabaseInput databaseInput = new DatabaseInput().withName(DB_NAME);
+        AWSGlueMetastoreCacheDecorator cacheDecorator =
+                spy(new AWSGlueMetastoreCacheDecorator(hiveConf, glueMetastore));
+        cacheDecorator.createDatabase(databaseInput);
+
+        verify(glueMetastore, times(1)).createDatabase(databaseInput);
+        verify(cacheDecorator, times(1)).invalidateDatabaseCache(DB_NAME);
+    }
+
+    @Test
+    public void testUpdateDatabase() {
+        DatabaseInput databaseInput = new DatabaseInput().withName(DB_NAME);
+        AWSGlueMetastoreCacheDecorator cacheDecorator =
+                spy(new AWSGlueMetastoreCacheDecorator(hiveConf, glueMetastore));
+
+        cacheDecorator.updateDatabase(DB_NAME, databaseInput);
+
+        verify(glueMetastore, times(1)).updateDatabase(DB_NAME, databaseInput);
+        verify(cacheDecorator, times(1)).invalidateDatabaseCache(DB_NAME);
+    }
+
+    @Test
+    public void testDeleteDatabase() {
+        AWSGlueMetastoreCacheDecorator cacheDecorator =
+                spy(new AWSGlueMetastoreCacheDecorator(hiveConf, glueMetastore));
+
+        cacheDecorator.deleteDatabase(DB_NAME);
+
+        verify(glueMetastore, times(1)).deleteDatabase(DB_NAME);
+        verify(cacheDecorator, times(1)).invalidateDatabaseCache(DB_NAME);
+    }
+
+    @Test
     public void testGetTableWhenCacheDisabled() {
-        //disable cache
         when(hiveConf.getBoolean(AWS_GLUE_TABLE_CACHE_ENABLE, false)).thenReturn(false);
         Table table = new Table();
         AWSGlueMetastoreCacheDecorator cacheDecorator =
                 new AWSGlueMetastoreCacheDecorator(hiveConf, glueMetastore);
         when(glueMetastore.getTable(DB_NAME, TABLE_NAME)).thenReturn(table);
+
         assertEquals(table, cacheDecorator.getTable(DB_NAME, TABLE_NAME));
         assertNull(cacheDecorator.tableCache);
         verify(glueMetastore, times(1)).getTable(DB_NAME, TABLE_NAME);
@@ -175,4 +209,38 @@ public class AWSGlueMetastoreCacheDecoratorTest {
         verify(tableCache, times(1)).getIfPresent(TABLE_IDENTIFIER);
     }
 
+    @Test
+    public void testCreateTable() {
+        TableInput tableInput = new TableInput().withName(TABLE_NAME);
+        AWSGlueMetastoreCacheDecorator cacheDecorator =
+                spy(new AWSGlueMetastoreCacheDecorator(hiveConf, glueMetastore));
+
+        cacheDecorator.createTable(DB_NAME, tableInput);
+
+        verify(glueMetastore, times(1)).createTable(DB_NAME, tableInput);
+        verify(cacheDecorator, times(1)).invalidateTableCache(DB_NAME, TABLE_NAME);
+    }
+
+    @Test
+    public void testUpdateTable() {
+        TableInput tableInput = new TableInput().withName(TABLE_NAME);
+        AWSGlueMetastoreCacheDecorator cacheDecorator =
+                spy(new AWSGlueMetastoreCacheDecorator(hiveConf, glueMetastore));
+
+        cacheDecorator.updateTable(DB_NAME, tableInput);
+
+        verify(glueMetastore, times(1)).updateTable(DB_NAME, tableInput);
+        verify(cacheDecorator, times(1)).invalidateTableCache(DB_NAME, TABLE_NAME);
+    }
+
+    @Test
+    public void testDeleteTable() {
+        AWSGlueMetastoreCacheDecorator cacheDecorator =
+                spy(new AWSGlueMetastoreCacheDecorator(hiveConf, glueMetastore));
+
+        cacheDecorator.deleteTable(DB_NAME, TABLE_NAME);
+
+        verify(glueMetastore, times(1)).deleteTable(DB_NAME, TABLE_NAME);
+        verify(cacheDecorator, times(1)).invalidateTableCache(DB_NAME, TABLE_NAME);
+    }
 }

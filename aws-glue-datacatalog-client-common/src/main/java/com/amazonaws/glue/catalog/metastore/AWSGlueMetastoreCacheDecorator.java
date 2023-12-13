@@ -1,7 +1,9 @@
 package com.amazonaws.glue.catalog.metastore;
 
 import com.amazonaws.services.glue.model.Database;
+import com.amazonaws.services.glue.model.DatabaseInput;
 import com.amazonaws.services.glue.model.Table;
+import com.amazonaws.services.glue.model.TableInput;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -120,6 +122,57 @@ public class AWSGlueMetastoreCacheDecorator extends AWSGlueMetastoreBaseDecorato
             result = super.getTable(dbName, tableName);
         }
         return result;
+    }
+
+    @Override
+    public void createDatabase(DatabaseInput databaseInput) {
+        invalidateDatabaseCache(databaseInput.getName());
+        super.createDatabase(databaseInput);
+    }
+
+    @Override
+    public void updateDatabase(String databaseName, DatabaseInput databaseInput) {
+        invalidateDatabaseCache(databaseName);
+        super.updateDatabase(databaseName, databaseInput);
+    }
+
+    @Override
+    public void deleteDatabase(String dbName) {
+        invalidateDatabaseCache(dbName);
+        super.deleteDatabase(dbName);
+    }
+
+    @Override
+    public void createTable(String dbName, TableInput tableInput) {
+        invalidateTableCache(dbName, tableInput.getName());
+        super.createTable(dbName, tableInput);
+    }
+
+    @Override
+    public void updateTable(String dbName, TableInput tableInput) {
+        invalidateTableCache(dbName, tableInput.getName());
+        super.updateTable(dbName, tableInput);
+    }
+
+    @Override
+    public void deleteTable(String dbName, String tableName) {
+        invalidateTableCache(dbName, tableName);
+        super.deleteTable(dbName, tableName);
+    }
+
+    protected void invalidateDatabaseCache(String dbName) {
+        if (databaseCacheEnabled && databaseCache != null) {
+            logger.info("Invalidated cache entry for database: " + dbName);
+            databaseCache.invalidate(dbName);
+        }
+    }
+
+    protected void invalidateTableCache(String dbName, String tableName) {
+        if (tableCacheEnabled && tableCache != null) {
+            TableIdentifier key = new TableIdentifier(dbName, tableName);
+            logger.info("Invalidated cache entry for table: " + key);
+            tableCache.invalidate(key);
+        }
     }
 
     static class TableIdentifier {
