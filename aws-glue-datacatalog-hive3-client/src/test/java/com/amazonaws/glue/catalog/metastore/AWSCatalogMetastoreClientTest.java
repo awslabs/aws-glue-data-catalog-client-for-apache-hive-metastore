@@ -5,6 +5,7 @@ import com.amazonaws.glue.catalog.converters.Hive3CatalogToHiveConverter;
 import com.amazonaws.glue.catalog.converters.HiveToCatalogConverter;
 import com.amazonaws.glue.catalog.util.ExprBuilder;
 import com.amazonaws.glue.catalog.util.ExpressionHelper;
+import com.amazonaws.glue.catalog.util.TestExecutorServiceFactory;
 import com.amazonaws.glue.catalog.util.TestObjects;
 import com.amazonaws.glue.shims.AwsGlueHiveShims;
 import com.amazonaws.glue.shims.ShimsLoader;
@@ -56,6 +57,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.StatsSetupConst;
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.Warehouse;
 import org.apache.hadoop.hive.metastore.api.EnvironmentContext;
@@ -1325,6 +1327,21 @@ public class AWSCatalogMetastoreClientTest {
         assertTrue(thread.isDaemon());
       }
     }
+  }
+
+  // ===================== Thread Executor =====================
+
+  @Test
+  public void testExecutorService() throws Exception {
+    Object defaultExecutorService = new DefaultExecutorServiceFactory().getExecutorService(conf);
+    assertEquals("Default executor service should be used", metastoreClient.getExecutorService(), defaultExecutorService);
+    HiveConf customConf = new HiveConf();
+    customConf.setClass(GlueMetastoreClientDelegate.CUSTOM_EXECUTOR_FACTORY_CONF, TestExecutorServiceFactory.class, ExecutorServiceFactory.class);
+    AWSCatalogMetastoreClient customClient = new AWSCatalogMetastoreClient.Builder().withClientFactory(clientFactory)
+        .withMetastoreFactory(metastoreFactory).withWarehouse(wh).createDefaults(false).withConf(customConf).build();
+    Object customExecutorService = new TestExecutorServiceFactory().getExecutorService(customConf);
+
+    assertEquals("Custom executor service should be used", customClient.getExecutorService(), customExecutorService);
   }
 
 }

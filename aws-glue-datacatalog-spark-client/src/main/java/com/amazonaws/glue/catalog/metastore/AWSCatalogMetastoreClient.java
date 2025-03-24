@@ -19,7 +19,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
@@ -87,6 +86,7 @@ import org.apache.hadoop.hive.metastore.api.UnknownTableException;
 import org.apache.hadoop.hive.metastore.api.hive_metastoreConstants;
 import org.apache.hadoop.hive.metastore.api.CompactionResponse;
 import org.apache.hadoop.hive.metastore.partition.spec.PartitionSpecProxy;
+import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.log4j.Logger;
 import org.apache.thrift.TException;
 
@@ -99,7 +99,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.regex.Pattern;
 
@@ -121,14 +120,10 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
   private final CatalogToHiveConverter catalogToHiveConverter;
 
   private static final int BATCH_DELETE_PARTITIONS_PAGE_SIZE = 25;
-  private static final int BATCH_DELETE_PARTITIONS_THREADS_COUNT = 5;
+
+  public static final String CUSTOM_EXECUTOR_FACTORY_CONF = "hive.metastore.executorservice.factory.class";
+
   static final String BATCH_DELETE_PARTITIONS_THREAD_POOL_NAME_FORMAT = "batch-delete-partitions-%d";
-  private static final ExecutorService BATCH_DELETE_PARTITIONS_THREAD_POOL = Executors.newFixedThreadPool(
-    BATCH_DELETE_PARTITIONS_THREADS_COUNT,
-    new ThreadFactoryBuilder()
-      .setNameFormat(BATCH_DELETE_PARTITIONS_THREAD_POOL_NAME_FORMAT)
-      .setDaemon(true).build()
-  );
 
   private final AwsGlueHiveShims hiveShims = ShimsLoader.getHiveShims();
   private Map<String, String> currentMetaVars;

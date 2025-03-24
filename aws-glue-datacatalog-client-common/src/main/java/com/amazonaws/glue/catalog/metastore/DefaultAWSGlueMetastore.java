@@ -57,7 +57,6 @@ import com.amazonaws.services.glue.model.UserDefinedFunction;
 import com.amazonaws.services.glue.model.UserDefinedFunctionInput;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.common.StatsSetupConst;
 import org.apache.hadoop.hive.metastore.api.EnvironmentContext;
@@ -73,7 +72,6 @@ import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -110,29 +108,23 @@ public class DefaultAWSGlueMetastore implements AWSGlueMetastore {
      */
     public static final String SKIP_AWS_GLUE_ARCHIVE = "skipAWSGlueArchive";
 
-    private static final int NUM_EXECUTOR_THREADS = 5;
-    static final String GLUE_METASTORE_DELEGATE_THREADPOOL_NAME_FORMAT = "glue-metastore-delegate-%d";
-    private static final ExecutorService GLUE_METASTORE_DELEGATE_THREAD_POOL = Executors.newFixedThreadPool(
-            NUM_EXECUTOR_THREADS,
-            new ThreadFactoryBuilder()
-                    .setNameFormat(GLUE_METASTORE_DELEGATE_THREADPOOL_NAME_FORMAT)
-                    .setDaemon(true).build()
-    );
-
     private final Configuration conf;
     private final AWSGlue glueClient;
     private final String catalogId;
-    private final ExecutorService executorService;
     private final int numPartitionSegments;
+    private static ExecutorService sharedExecutorService;
 
-    protected ExecutorService getExecutorService(Configuration conf) {
-        Class<? extends ExecutorServiceFactory> executorFactoryClass = conf
+    protected synchronized ExecutorService getExecutorService() {
+        if (sharedExecutorService == null) {
+            Class<? extends ExecutorServiceFactory> executorFactoryClass = this.conf
                 .getClass(CUSTOM_EXECUTOR_FACTORY_CONF,
-                        DefaultExecutorServiceFactory.class).asSubclass(
-                        ExecutorServiceFactory.class);
-        ExecutorServiceFactory factory = ReflectionUtils.newInstance(
+                    DefaultExecutorServiceFactory.class).asSubclass(
+                    ExecutorServiceFactory.class);
+            ExecutorServiceFactory factory = ReflectionUtils.newInstance(
                 executorFactoryClass, conf);
-        return factory.getExecutorService(conf);
+            sharedExecutorService = factory.getExecutorService(conf);
+        }
+        return sharedExecutorService;
     }
 
     public DefaultAWSGlueMetastore(Configuration conf, AWSGlue glueClient) {
@@ -144,7 +136,6 @@ public class DefaultAWSGlueMetastore implements AWSGlueMetastore {
         this.conf = conf;
         this.glueClient = glueClient;
         this.catalogId = MetastoreClientUtils.getCatalogId(conf);
-        this.executorService = getExecutorService(conf);
     }
 
     // ======================= Database =======================
@@ -275,7 +266,7 @@ public class DefaultAWSGlueMetastore implements AWSGlueMetastore {
                     .withTableName(tableName)
                     .withPartitionsToGet(batch)
                     .withCatalogId(catalogId);
-            batchGetPartitionFutures.add(this.executorService.submit(new Callable<BatchGetPartitionResult>() {
+            batchGetPartitionFutures.add(getExecutorService().submit(new Callable<BatchGetPartitionResult>() {
                 @Override
                 public BatchGetPartitionResult call() throws Exception {
                     return glueClient.batchGetPartition(request);
@@ -327,7 +318,7 @@ public class DefaultAWSGlueMetastore implements AWSGlueMetastore {
         // We could convert this into a parallelStream after upgrading to JDK 8 compiler base.
         List<Future<List<Partition>>> futures = Lists.newArrayList();
         for (final Segment segment : segments) {
-            futures.add(this.executorService.submit(new Callable<List<Partition>>() {
+            futures.add(getExecutorService().submit(new Callable<List<Partition>>() {
                 @Override
                 public List<Partition> call() throws Exception {
                     return getCatalogPartitions(databaseName, tableName, expression, max, segment);
@@ -508,7 +499,7 @@ public class DefaultAWSGlueMetastore implements AWSGlueMetastore {
                         .withTableName(tableName)
                         .withPartitionValues(partValues)
                         .withColumnNames(cols);
-                pagedResult.add(GLUE_METASTORE_DELEGATE_THREAD_POOL.submit(new Callable<GetColumnStatisticsForPartitionResult>() {
+                pagedResult.add(getExecutorService().submit(new Callable<GetColumnStatisticsForPartitionResult>() {
                     @Override
                     public GetColumnStatisticsForPartitionResult call() throws Exception {
                         return glueClient.getColumnStatisticsForPartition(request);
@@ -543,7 +534,7 @@ public class DefaultAWSGlueMetastore implements AWSGlueMetastore {
                     .withDatabaseName(dbName)
                     .withTableName(tableName)
                     .withColumnNames(cols);
-            pagedResult.add(GLUE_METASTORE_DELEGATE_THREAD_POOL.submit(new Callable<GetColumnStatisticsForTableResult>() {
+            pagedResult.add(getExecutorService().submit(new Callable<GetColumnStatisticsForTableResult>() {
                 @Override
                 public GetColumnStatisticsForTableResult call() throws Exception {
                     return glueClient.getColumnStatisticsForTable(request);
@@ -581,7 +572,7 @@ public class DefaultAWSGlueMetastore implements AWSGlueMetastore {
                     .withTableName(tableName)
                     .withPartitionValues(partitionValues)
                     .withColumnStatisticsList(statList);
-            pagedResult.add(GLUE_METASTORE_DELEGATE_THREAD_POOL.submit(new Callable<UpdateColumnStatisticsForPartitionResult>() {
+            pagedResult.add(getExecutorService().submit(new Callable<UpdateColumnStatisticsForPartitionResult>() {
                 @Override
                 public UpdateColumnStatisticsForPartitionResult call() throws Exception {
                     return glueClient.updateColumnStatisticsForPartition(request);
@@ -617,7 +608,7 @@ public class DefaultAWSGlueMetastore implements AWSGlueMetastore {
                     .withDatabaseName(dbName)
                     .withTableName(tableName)
                     .withColumnStatisticsList(statList);
-            pagedResult.add(GLUE_METASTORE_DELEGATE_THREAD_POOL.submit(new Callable<UpdateColumnStatisticsForTableResult>() {
+            pagedResult.add(getExecutorService().submit(new Callable<UpdateColumnStatisticsForTableResult>() {
                 @Override
                 public UpdateColumnStatisticsForTableResult call() throws Exception {
                     return glueClient.updateColumnStatisticsForTable(request);
