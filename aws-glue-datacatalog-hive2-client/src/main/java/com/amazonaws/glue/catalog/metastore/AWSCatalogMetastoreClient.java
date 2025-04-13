@@ -1251,6 +1251,17 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
   }
 
   @Override
+  public PartitionValuesResponse listPartitionValues(PartitionValuesRequest partitionValuesRequest) throws MetaException, TException, NoSuchObjectException {
+    List<org.apache.hadoop.hive.metastore.api.Partition> partitions = glueMetastoreClientDelegate.getPartitions(partitionValuesRequest.getDbName(), partitionValuesRequest.getTblName(), partitionValuesRequest.getFilter(), partitionValuesRequest.getMaxParts());
+    List<PartitionValuesRow> partitionRows = new ArrayList<>();
+    for(org.apache.hadoop.hive.metastore.api.Partition p: partitions) {
+      partitionRows.add(new PartitionValuesRow(p.getValues()));
+    }
+    PartitionValuesResponse response = new PartitionValuesResponse(partitionRows);
+    return response;
+  }
+
+  @Override
   public int getNumPartitionsByFilter(String dbName, String tableName, String filter)
       throws MetaException, NoSuchObjectException, TException {
     return glueMetastoreClientDelegate.getNumPartitionsByFilter(dbName, tableName, filter);
