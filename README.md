@@ -22,7 +22,9 @@ To build the Hive client, you need to first apply this [patch](https://github.co
 	git apply -3 branch_3.1.patch
 	mvn clean install -DskipTests
 
-As Spark uses a fork of Hive based off the 2.3 branch, in order to build the Spark client, you need Hive 2.3 built with this [patch](https://issues.apache.org/jira/secure/attachment/12958418/HIVE-12679.branch-2.3.patch).
+As Spark uses a fork of Hive based off the 2.3 branch, in order to build the Spark client, you need Hive 2.3 built with the patch [HIVE-12679.branch-2.3.CORRECTED.patch](HIVE-12679.branch-2.3.CORRECTED.patch).
+
+**Important:** Use the `HIVE-12679.branch-2.3.CORRECTED.patch` included in this repository for Hive 2.3. Do NOT use the original JIRA patch `HIVE-12679.branch-2.3.patch` as it contains a configuration property name typo (`hive.imetastoreclient.factory.class` instead of `hive.metastore.client.factory.class`) that prevents Spark 3.4.x compatibility. This corrected patch addresses the issue reported in [#83](https://github.com/awslabs/aws-glue-data-catalog-client-for-apache-hive-metastore/issues/83).
 
 If building off the previous Hive repo, please reset those changes:
 
@@ -33,7 +35,7 @@ Continue with patching the 2.3 branch:
 
 	cd <your local Hive repo>
 	git checkout branch-2.3
-    patch -p0 <HIVE-12679.branch-2.3.patch
+    git apply HIVE-12679.branch-2.3.CORRECTED.patch
     mvn clean install -DskipTests
 
 ## Building the Glue Data Catalog Client
@@ -67,6 +69,31 @@ You need to ensure that the AWS Glue Data Catalog Client jar is in Hive's CLASSP
 ## Configuring Spark to Use the Spark Client
 
 Similarly, for Spark, you need to install the client jar in Spark's CLASSPATH and create or update Spark's own hive-site.xml to add the above property.  On Amazon EMR, this is set in /usr/lib/spark/conf/hive-site.xml.  You can also find the location of the Spark client jar in /usr/lib/spark/conf/spark-defaults.conf.
+
+## Configuration Matrix
+
+Different Spark and Hive versions require different configuration approaches:
+
+| Spark/Hive Version | Property to Set | Factory Class | Notes |
+|-------------------|-----------------|---------------|-------|
+| Spark 3.x + Hive 2.3.x | `hive.metastore.client.factory.class` | `com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory` | Use `HIVE-12679.branch-2.3.CORRECTED.patch` |
+| Spark 3.x + Hive 3.1.x | `hive.metastore.client.factory.class` | `com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory` | Use `branch_3.1.patch` |
+
+### Example Spark Configuration
+
+For **Spark 3.4.x** with AWS Glue Data Catalog:
+
+```bash
+spark-shell \
+  --conf spark.sql.catalogImplementation=hive \
+  --conf spark.hadoop.hive.metastore.client.factory.class=com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory \
+  --conf spark.hadoop.hive.metastore.glue.catalogid=<your_account_id> \
+  --conf spark.hadoop.aws.region=<your_region> \
+  --conf spark.sql.hive.metastore.version=2.3 \
+  --conf spark.sql.hive.metastore.jars=path \
+  --conf spark.sql.hive.metastore.jars.path="/opt/spark/jars/*"
+```
+
 
 ## Enabling client side caching for catalog
 
