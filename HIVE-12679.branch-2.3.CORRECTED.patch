@@ -1,0 +1,304 @@
+diff --git common/src/java/org/apache/hadoop/hive/conf/HiveConf.java common/src/java/org/apache/hadoop/hive/conf/HiveConf.java
+index 41d12ce643..d93e8bf131 100644
+--- common/src/java/org/apache/hadoop/hive/conf/HiveConf.java
++++ common/src/java/org/apache/hadoop/hive/conf/HiveConf.java
+@@ -590,6 +590,9 @@ private static void populateLlapDaemonVarsSet(Set<String> llapDaemonVarsSetLocal
+     HADOOPNUMREDUCERS("mapreduce.job.reduces", -1, "", true),
+
+     // Metastore stuff. Be sure to update HiveConf.metaVars when you add something here!
++    METASTORE_CLIENT_FACTORY_CLASS("hive.metastore.client.factory.class",
++                "org.apache.hadoop.hive.ql.metadata.SessionHiveMetaStoreClientFactory",
++                "The name of the factory class that produces objects implementing the IMetaStoreClient interface."),
+     METASTOREWAREHOUSE("hive.metastore.warehouse.dir", "/user/hive/warehouse",
+         "location of default database for the warehouse"),
+     METASTOREURIS("hive.metastore.uris", "",
+diff --git ql/src/java/org/apache/hadoop/hive/ql/metadata/Hive.java ql/src/java/org/apache/hadoop/hive/ql/metadata/Hive.java
+index f64cfda6da..bc060fd65d 100644
+--- ql/src/java/org/apache/hadoop/hive/ql/metadata/Hive.java
++++ ql/src/java/org/apache/hadoop/hive/ql/metadata/Hive.java
+@@ -146,6 +146,7 @@
+ import org.apache.hadoop.mapred.InputFormat;
+ import org.apache.hadoop.security.UserGroupInformation;
+ import org.apache.hadoop.util.StringUtils;
++import org.apache.hive.common.util.ReflectionUtil;
+ import org.apache.thrift.TException;
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+@@ -171,6 +172,7 @@
+   static final private Logger LOG = LoggerFactory.getLogger("hive.ql.metadata.Hive");
+
+   private HiveConf conf = null;
++  private String metaStoreClientFactoryClassName;
+   private IMetaStoreClient metaStoreClient;
+   private SynchronizedMetaStoreClient syncMetaStoreClient;
+   private UserGroupInformation owner;
+@@ -384,6 +386,7 @@ public static void closeCurrent() {
+    */
+   private Hive(HiveConf c, boolean doRegisterAllFns) throws HiveException {
+     conf = c;
++    metaStoreClientFactoryClassName = conf.getVar(HiveConf.ConfVars.METASTORE_CLIENT_FACTORY_CLASS);
+     if (doRegisterAllFns) {
+       registerAllFunctionsOnce();
+     }
+@@ -3560,8 +3563,7 @@ public static boolean isHadoop1() {
+   }
+
+   /**
+-   * Creates a metastore client. Currently it creates only JDBC based client as
+-   * File based store support is removed
++   * Creates a metastore client using a factory specified via HiveConf.
+    *
+    * @returns a Meta Store Client
+    * @throws HiveMetaException
+@@ -3569,37 +3571,41 @@ public static boolean isHadoop1() {
+    */
+   private IMetaStoreClient createMetaStoreClient(boolean allowEmbedded) throws MetaException {
+
++    HiveMetaStoreClientFactory factory;
++    try {
++      // IMetaStoreClient is not Configurable so pass "null" for Configuration
++      factory = (HiveMetaStoreClientFactory) ReflectionUtil.newInstance(
++          conf.getClassByName(metaStoreClientFactoryClassName), null);
++    } catch (Exception e) {
++      String errorMessage = "Unable to instantiate a metastore client factory "
++          + metaStoreClientFactoryClassName + ": " + e;
++      LOG.error(errorMessage, e);
++      throw new MetaException(errorMessage);
++    }
++
+     HiveMetaHookLoader hookLoader = new HiveMetaHookLoader() {
+-        @Override
+-        public HiveMetaHook getHook(
+-          org.apache.hadoop.hive.metastore.api.Table tbl)
++      @Override
++      public HiveMetaHook getHook(org.apache.hadoop.hive.metastore.api.Table tbl)
+           throws MetaException {
+
+-          try {
+-            if (tbl == null) {
+-              return null;
+-            }
+-            HiveStorageHandler storageHandler =
+-              HiveUtils.getStorageHandler(conf,
+-                tbl.getParameters().get(META_TABLE_STORAGE));
+-            if (storageHandler == null) {
+-              return null;
+-            }
+-            return storageHandler.getMetaHook();
+-          } catch (HiveException ex) {
+-            LOG.error(StringUtils.stringifyException(ex));
+-            throw new MetaException(
+-              "Failed to load storage handler:  " + ex.getMessage());
++        try {
++          if (tbl == null) {
++            return null;
++          }
++          HiveStorageHandler storageHandler = HiveUtils.getStorageHandler(conf, tbl.getParameters()
++              .get(META_TABLE_STORAGE));
++          if (storageHandler == null) {
++            return null;
+           }
++          return storageHandler.getMetaHook();
++        } catch (HiveException ex) {
++          LOG.error(StringUtils.stringifyException(ex));
++          throw new MetaException("Failed to load storage handler:  " + ex.getMessage());
+         }
+-      };
++      }
++    };
+
+-    if (conf.getBoolVar(ConfVars.METASTORE_FASTPATH)) {
+-      return new SessionHiveMetaStoreClient(conf, hookLoader, allowEmbedded);
+-    } else {
+-      return RetryingMetaStoreClient.getProxy(conf, hookLoader, metaCallTimeMap,
+-          SessionHiveMetaStoreClient.class.getName(), allowEmbedded);
+-    }
++    return factory.createMetaStoreClient(conf, hookLoader, allowEmbedded, metaCallTimeMap);
+   }
+
+   public static class SchemaException extends MetaException {
+diff --git ql/src/java/org/apache/hadoop/hive/ql/metadata/HiveMetaStoreClientFactory.java ql/src/java/org/apache/hadoop/hive/ql/metadata/HiveMetaStoreClientFactory.java
+new file mode 100644
+index 0000000000..ed17b3b147
+--- /dev/null
++++ ql/src/java/org/apache/hadoop/hive/ql/metadata/HiveMetaStoreClientFactory.java
+@@ -0,0 +1,56 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one
++ * or more contributor license agreements.  See the NOTICE file
++ * distributed with this work for additional information
++ * regarding copyright ownership.  The ASF licenses this file
++ * to you under the Apache License, Version 2.0 (the
++ * "License"); you may not use this file except in compliance
++ * with the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.hadoop.hive.ql.metadata;
++
++import java.util.concurrent.ConcurrentHashMap;
++
++import org.apache.hadoop.hive.conf.HiveConf;
++import org.apache.hadoop.hive.metastore.HiveMetaHookLoader;
++import org.apache.hadoop.hive.metastore.IMetaStoreClient;
++import org.apache.hadoop.hive.metastore.api.MetaException;
++
++/**
++ * Abstract factory that defines an interface for other factories that produce concrete
++ * MetaStoreClient objects.
++ *
++ */
++public interface HiveMetaStoreClientFactory {
++
++  /**
++   * A method for producing IMetaStoreClient objects.
++   *
++   * The implementation returned by this method must throw a MetaException if allowEmbedded = true
++   * and it does not support embedded mode.
++   *
++   * @param conf
++   *          Hive Configuration.
++   * @param hookLoader
++   *          Hook for handling events related to tables.
++   * @param allowEmbedded
++   *          Flag indicating the implementation must run in-process, e.g. for unit testing or
++   *          "fast path".
++   * @param metaCallTimeMap
++   *          A container for storing entry and exit timestamps of IMetaStoreClient method
++   *          invocations.
++   * @return IMetaStoreClient An implementation of IMetaStoreClient.
++   * @throws MetaException
++   */
++  IMetaStoreClient createMetaStoreClient(HiveConf conf, HiveMetaHookLoader hookLoader,
++      boolean allowEmbedded, ConcurrentHashMap<String, Long> metaCallTimeMap) throws MetaException;
++}
+diff --git ql/src/java/org/apache/hadoop/hive/ql/metadata/SessionHiveMetaStoreClientFactory.java ql/src/java/org/apache/hadoop/hive/ql/metadata/SessionHiveMetaStoreClientFactory.java
+new file mode 100644
+index 0000000000..e4fe7642d4
+--- /dev/null
++++ ql/src/java/org/apache/hadoop/hive/ql/metadata/SessionHiveMetaStoreClientFactory.java
+@@ -0,0 +1,54 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one
++ * or more contributor license agreements.  See the NOTICE file
++ * distributed with this work for additional information
++ * regarding copyright ownership.  The ASF licenses this file
++ * to you under the Apache License, Version 2.0 (the
++ * "License"); you may not use this file except in compliance
++ * with the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.apache.hadoop.hive.ql.metadata;
++
++import static com.google.common.base.Preconditions.checkNotNull;
++
++import java.util.concurrent.ConcurrentHashMap;
++
++import org.apache.hadoop.hive.conf.HiveConf;
++import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
++import org.apache.hadoop.hive.metastore.HiveMetaHookLoader;
++import org.apache.hadoop.hive.metastore.IMetaStoreClient;
++import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
++import org.apache.hadoop.hive.metastore.api.MetaException;
++
++/**
++ * Default MetaStoreClientFactory for Hive which produces SessionHiveMetaStoreClient objects.
++ *
++ */
++public final class SessionHiveMetaStoreClientFactory implements HiveMetaStoreClientFactory {
++
++  @Override
++  public IMetaStoreClient createMetaStoreClient(final HiveConf conf, HiveMetaHookLoader hookLoader,
++      boolean allowEmbedded,
++      ConcurrentHashMap<String, Long> metaCallTimeMap) throws MetaException {
++
++    checkNotNull(conf, "conf cannot be null!");
++    checkNotNull(metaCallTimeMap, "metaCallTimeMap cannot be null!");
++
++    if (conf.getBoolVar(ConfVars.METASTORE_FASTPATH)) {
++      return new SessionHiveMetaStoreClient(conf, hookLoader, allowEmbedded);
++    } else {
++      return RetryingMetaStoreClient.getProxy(conf, hookLoader, metaCallTimeMap,
++          SessionHiveMetaStoreClient.class.getName(), allowEmbedded);
++    }
++  }
++
++}
+diff --git ql/src/test/org/apache/hadoop/hive/ql/metadata/TestHive.java ql/src/test/org/apache/hadoop/hive/ql/metadata/TestHive.java
+index 91eb033c87..a60f7a56f9 100755
+--- ql/src/test/org/apache/hadoop/hive/ql/metadata/TestHive.java
++++ ql/src/test/org/apache/hadoop/hive/ql/metadata/TestHive.java
+@@ -19,6 +19,8 @@
+ package org.apache.hadoop.hive.ql.metadata;
+
+ import static org.apache.hadoop.hive.metastore.MetaStoreUtils.DEFAULT_DATABASE_NAME;
++import static org.junit.Assert.assertThat;
++import static org.hamcrest.CoreMatchers.instanceOf;
+
+ import java.util.ArrayList;
+ import java.util.Arrays;
+@@ -33,6 +35,7 @@
+ import org.apache.hadoop.fs.Path;
+ import org.apache.hadoop.hive.conf.HiveConf;
+ import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
++import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+ import org.apache.hadoop.hive.metastore.MetaStoreUtils;
+ import org.apache.hadoop.hive.metastore.PartitionDropOptions;
+ import org.apache.hadoop.hive.metastore.Warehouse;
+@@ -833,6 +836,41 @@ public void testHiveRefreshOnConfChange() throws Throwable{
+     assertTrue(prevHiveObj != newHiveObj);
+   }
+
++  public void testLoadingHiveMetaStoreClientFactory() throws Throwable {
++    String factoryClassName = SessionHiveMetaStoreClientFactory.class.getName();
++    HiveConf conf = new HiveConf();
++    conf.setVar(ConfVars.METASTORE_CLIENT_FACTORY_CLASS, factoryClassName);
++    // Make sure we instantiate the embedded version
++    // so the implementation chosen is SessionHiveMetaStoreClient, not a retryable version of it.
++    conf.setBoolVar(ConfVars.METASTORE_FASTPATH, true);
++    // The current object was constructed in setUp() before we got here
++    // so clean that up so we can inject our own dummy implementation of IMetaStoreClient
++    Hive.closeCurrent();
++    Hive hive = Hive.get(conf);
++    IMetaStoreClient tmp = null;
++    tmp = hive.getMSC();
++    assertNotNull("getMSC() failed.", tmp);
++    assertThat("Invalid default client implementation created.", tmp,
++        instanceOf(SessionHiveMetaStoreClient.class));
++  }
++
++  public void testLoadingInvalidHiveMetaStoreClientFactory() throws Throwable {
++    // Intentionally invalid class
++    String factoryClassName = String.class.getName();
++    HiveConf conf = new HiveConf();
++    conf.setVar(HiveConf.ConfVars.METASTORE_CLIENT_FACTORY_CLASS, factoryClassName);
++    // The current object was constructed in setUp() before we got here
++    // so clean that up so we can inject our own dummy implementation of IMetaStoreClient
++    Hive.closeCurrent();
++    Hive hive = Hive.get(conf);
++    try {
++      hive.getMSC();
++      fail("getMSC() was expected to throw MetaException.");
++    } catch (Exception e) {
++      assertTrue("getMSC() failed, which IS expected.", true);
++    }
++  }
++
+   // shamelessly copied from Path in hadoop-2
+   private static final String SEPARATOR = "/";
+   private static final char SEPARATOR_CHAR = '/';
