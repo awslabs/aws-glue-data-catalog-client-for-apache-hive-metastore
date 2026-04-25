@@ -1,58 +1,58 @@
 package com.amazonaws.glue.catalog.metastore;
 
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.BatchCreatePartitionRequest;
-import com.amazonaws.services.glue.model.BatchCreatePartitionResult;
-import com.amazonaws.services.glue.model.BatchDeletePartitionRequest;
-import com.amazonaws.services.glue.model.BatchDeletePartitionResult;
-import com.amazonaws.services.glue.model.BatchDeleteTableRequest;
-import com.amazonaws.services.glue.model.BatchDeleteTableResult;
-import com.amazonaws.services.glue.model.BatchGetPartitionRequest;
-import com.amazonaws.services.glue.model.BatchGetPartitionResult;
-import com.amazonaws.services.glue.model.CreateDatabaseRequest;
-import com.amazonaws.services.glue.model.CreateDatabaseResult;
-import com.amazonaws.services.glue.model.CreatePartitionRequest;
-import com.amazonaws.services.glue.model.CreatePartitionResult;
-import com.amazonaws.services.glue.model.CreateTableRequest;
-import com.amazonaws.services.glue.model.CreateTableResult;
-import com.amazonaws.services.glue.model.CreateUserDefinedFunctionRequest;
-import com.amazonaws.services.glue.model.CreateUserDefinedFunctionResult;
-import com.amazonaws.services.glue.model.DeleteDatabaseRequest;
-import com.amazonaws.services.glue.model.DeleteDatabaseResult;
-import com.amazonaws.services.glue.model.DeletePartitionRequest;
-import com.amazonaws.services.glue.model.DeletePartitionResult;
-import com.amazonaws.services.glue.model.DeleteTableRequest;
-import com.amazonaws.services.glue.model.DeleteTableResult;
-import com.amazonaws.services.glue.model.DeleteUserDefinedFunctionRequest;
-import com.amazonaws.services.glue.model.DeleteUserDefinedFunctionResult;
-import com.amazonaws.services.glue.model.GetDatabaseRequest;
-import com.amazonaws.services.glue.model.GetDatabaseResult;
-import com.amazonaws.services.glue.model.GetPartitionRequest;
-import com.amazonaws.services.glue.model.GetPartitionResult;
-import com.amazonaws.services.glue.model.GetPartitionsRequest;
-import com.amazonaws.services.glue.model.GetPartitionsResult;
-import com.amazonaws.services.glue.model.GetTableRequest;
-import com.amazonaws.services.glue.model.GetTableResult;
-import com.amazonaws.services.glue.model.GetTableVersionsRequest;
-import com.amazonaws.services.glue.model.GetTableVersionsResult;
-import com.amazonaws.services.glue.model.GetTablesRequest;
-import com.amazonaws.services.glue.model.GetTablesResult;
-import com.amazonaws.services.glue.model.GetUserDefinedFunctionRequest;
-import com.amazonaws.services.glue.model.GetUserDefinedFunctionResult;
-import com.amazonaws.services.glue.model.GetUserDefinedFunctionsRequest;
-import com.amazonaws.services.glue.model.GetUserDefinedFunctionsResult;
-import com.amazonaws.services.glue.model.UpdateDatabaseRequest;
-import com.amazonaws.services.glue.model.UpdateDatabaseResult;
-import com.amazonaws.services.glue.model.UpdatePartitionRequest;
-import com.amazonaws.services.glue.model.UpdatePartitionResult;
-import com.amazonaws.services.glue.model.UpdateTableRequest;
-import com.amazonaws.services.glue.model.UpdateTableResult;
-import com.amazonaws.services.glue.model.UpdateUserDefinedFunctionRequest;
-import com.amazonaws.services.glue.model.UpdateUserDefinedFunctionResult;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.BatchCreatePartitionRequest;
+import software.amazon.awssdk.services.glue.model.BatchCreatePartitionResponse;
+import software.amazon.awssdk.services.glue.model.BatchDeletePartitionRequest;
+import software.amazon.awssdk.services.glue.model.BatchDeletePartitionResponse;
+import software.amazon.awssdk.services.glue.model.BatchDeleteTableRequest;
+import software.amazon.awssdk.services.glue.model.BatchDeleteTableResponse;
+import software.amazon.awssdk.services.glue.model.BatchGetPartitionRequest;
+import software.amazon.awssdk.services.glue.model.BatchGetPartitionResponse;
+import software.amazon.awssdk.services.glue.model.CreateDatabaseRequest;
+import software.amazon.awssdk.services.glue.model.CreateDatabaseResponse;
+import software.amazon.awssdk.services.glue.model.CreatePartitionRequest;
+import software.amazon.awssdk.services.glue.model.CreatePartitionResponse;
+import software.amazon.awssdk.services.glue.model.CreateTableRequest;
+import software.amazon.awssdk.services.glue.model.CreateTableResponse;
+import software.amazon.awssdk.services.glue.model.CreateUserDefinedFunctionRequest;
+import software.amazon.awssdk.services.glue.model.CreateUserDefinedFunctionResponse;
+import software.amazon.awssdk.services.glue.model.DeleteDatabaseRequest;
+import software.amazon.awssdk.services.glue.model.DeleteDatabaseResponse;
+import software.amazon.awssdk.services.glue.model.DeletePartitionRequest;
+import software.amazon.awssdk.services.glue.model.DeletePartitionResponse;
+import software.amazon.awssdk.services.glue.model.DeleteTableRequest;
+import software.amazon.awssdk.services.glue.model.DeleteTableResponse;
+import software.amazon.awssdk.services.glue.model.DeleteUserDefinedFunctionRequest;
+import software.amazon.awssdk.services.glue.model.DeleteUserDefinedFunctionResponse;
+import software.amazon.awssdk.services.glue.model.GetDatabaseRequest;
+import software.amazon.awssdk.services.glue.model.GetDatabaseResponse;
+import software.amazon.awssdk.services.glue.model.GetPartitionRequest;
+import software.amazon.awssdk.services.glue.model.GetPartitionResponse;
+import software.amazon.awssdk.services.glue.model.GetPartitionsRequest;
+import software.amazon.awssdk.services.glue.model.GetPartitionsResponse;
+import software.amazon.awssdk.services.glue.model.GetTableRequest;
+import software.amazon.awssdk.services.glue.model.GetTableResponse;
+import software.amazon.awssdk.services.glue.model.GetTableVersionsRequest;
+import software.amazon.awssdk.services.glue.model.GetTableVersionsResponse;
+import software.amazon.awssdk.services.glue.model.GetTablesRequest;
+import software.amazon.awssdk.services.glue.model.GetTablesResponse;
+import software.amazon.awssdk.services.glue.model.GetUserDefinedFunctionRequest;
+import software.amazon.awssdk.services.glue.model.GetUserDefinedFunctionResponse;
+import software.amazon.awssdk.services.glue.model.GetUserDefinedFunctionsRequest;
+import software.amazon.awssdk.services.glue.model.GetUserDefinedFunctionsResponse;
+import software.amazon.awssdk.services.glue.model.Partition;
+import software.amazon.awssdk.services.glue.model.UpdateDatabaseRequest;
+import software.amazon.awssdk.services.glue.model.UpdateDatabaseResponse;
+import software.amazon.awssdk.services.glue.model.UpdatePartitionRequest;
+import software.amazon.awssdk.services.glue.model.UpdatePartitionResponse;
+import software.amazon.awssdk.services.glue.model.UpdateTableRequest;
+import software.amazon.awssdk.services.glue.model.UpdateTableResponse;
+import software.amazon.awssdk.services.glue.model.UpdateUserDefinedFunctionRequest;
+import software.amazon.awssdk.services.glue.model.UpdateUserDefinedFunctionResponse;
 import com.google.common.base.Strings;
 
-import java.util.function.Consumer;
-import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 
 public class AWSGlueMultipleCatalogDecorator extends AWSGlueDecoratorBase {
@@ -62,288 +62,298 @@ public class AWSGlueMultipleCatalogDecorator extends AWSGlueDecoratorBase {
 
     private String catalogSeparator;
 
-    public AWSGlueMultipleCatalogDecorator(AWSGlue awsGlueToBeDecorated, String catalogSeparator) {
-        super(awsGlueToBeDecorated);
+    public AWSGlueMultipleCatalogDecorator(GlueClient glueClient, String catalogSeparator) {
+        super(glueClient);
         this.catalogSeparator = catalogSeparator;
     }
 
-    private void configureRequest(Supplier<String> getDatabaseFunc,
-                                  Consumer<String> setDatabaseFunc,
-                                  Consumer<String> setCatalogFunc) {
-        if (!Strings.isNullOrEmpty(this.catalogSeparator) && (getDatabaseFunc.get() != null)
-            && !getDatabaseFunc.get().equals(DEFAULT_DATABASE_NAME)) {
-            String databaseName = getDatabaseFunc.get();
-            int idx = databaseName.indexOf(this.catalogSeparator);
-            if (idx >= 0) {
-                setCatalogFunc.accept(databaseName.substring(0, idx));
-                setDatabaseFunc.accept(databaseName.substring(idx + this.catalogSeparator.length()));
-            }
+    private static class CatalogResult {
+        final String catalogId;
+        final String databaseName;
+
+        CatalogResult(String catalogId, String databaseName) {
+            this.catalogId = catalogId;
+            this.databaseName = databaseName;
         }
     }
 
-    @Override
-    public BatchCreatePartitionResult batchCreatePartition(BatchCreatePartitionRequest batchCreatePartitionRequest) {
-        configureRequest(
-                batchCreatePartitionRequest::getDatabaseName,
-                batchCreatePartitionRequest::setDatabaseName,
-                batchCreatePartitionRequest::setCatalogId
-        );
-        return super.batchCreatePartition(batchCreatePartitionRequest);
+    private CatalogResult extractCatalog(String databaseName) {
+        if (!Strings.isNullOrEmpty(this.catalogSeparator) && databaseName != null
+            && !databaseName.equals(DEFAULT_DATABASE_NAME)) {
+            int idx = databaseName.indexOf(this.catalogSeparator);
+            if (idx >= 0) {
+                return new CatalogResult(
+                    databaseName.substring(0, idx),
+                    databaseName.substring(idx + this.catalogSeparator.length()));
+            }
+        }
+        return null;
     }
 
     @Override
-    public BatchDeletePartitionResult batchDeletePartition(BatchDeletePartitionRequest batchDeletePartitionRequest) {
-        configureRequest(
-                batchDeletePartitionRequest::getDatabaseName,
-                batchDeletePartitionRequest::setDatabaseName,
-                batchDeletePartitionRequest::setCatalogId
-        );
-        return super.batchDeletePartition(batchDeletePartitionRequest);
+    public BatchCreatePartitionResponse batchCreatePartition(BatchCreatePartitionRequest request) {
+        CatalogResult cr = extractCatalog(request.databaseName());
+        if (cr != null) {
+            request = request.toBuilder().databaseName(cr.databaseName).catalogId(cr.catalogId).build();
+        }
+        return super.batchCreatePartition(request);
     }
 
     @Override
-    public BatchDeleteTableResult batchDeleteTable(BatchDeleteTableRequest batchDeleteTableRequest) {
-        configureRequest(
-                batchDeleteTableRequest::getDatabaseName,
-                batchDeleteTableRequest::setDatabaseName,
-                batchDeleteTableRequest::setCatalogId
-        );
-        return super.batchDeleteTable(batchDeleteTableRequest);
+    public BatchDeletePartitionResponse batchDeletePartition(BatchDeletePartitionRequest request) {
+        CatalogResult cr = extractCatalog(request.databaseName());
+        if (cr != null) {
+            request = request.toBuilder().databaseName(cr.databaseName).catalogId(cr.catalogId).build();
+        }
+        return super.batchDeletePartition(request);
     }
 
     @Override
-    public BatchGetPartitionResult batchGetPartition(BatchGetPartitionRequest batchGetPartitionRequest) {
-        String originalDatabaseName = batchGetPartitionRequest.getDatabaseName();
-        configureRequest(
-                batchGetPartitionRequest::getDatabaseName,
-                batchGetPartitionRequest::setDatabaseName,
-                batchGetPartitionRequest::setCatalogId
-        );
-        BatchGetPartitionResult result = super.batchGetPartition(batchGetPartitionRequest);
-        result.getPartitions().forEach(partition -> partition.setDatabaseName(originalDatabaseName));
-        return result;
+    public BatchDeleteTableResponse batchDeleteTable(BatchDeleteTableRequest request) {
+        CatalogResult cr = extractCatalog(request.databaseName());
+        if (cr != null) {
+            request = request.toBuilder().databaseName(cr.databaseName).catalogId(cr.catalogId).build();
+        }
+        return super.batchDeleteTable(request);
     }
 
     @Override
-    public CreateDatabaseResult createDatabase(CreateDatabaseRequest createDatabaseRequest) {
-        configureRequest(
-                () -> createDatabaseRequest.getDatabaseInput().getName(),
-                name -> createDatabaseRequest.getDatabaseInput().setName(name),
-                createDatabaseRequest::setCatalogId
-        );
-        return super.createDatabase(createDatabaseRequest);
+    public BatchGetPartitionResponse batchGetPartition(BatchGetPartitionRequest request) {
+        String originalDatabaseName = request.databaseName();
+        CatalogResult cr = extractCatalog(originalDatabaseName);
+        if (cr != null) {
+            request = request.toBuilder().databaseName(cr.databaseName).catalogId(cr.catalogId).build();
+        }
+        BatchGetPartitionResponse result = super.batchGetPartition(request);
+        return result.toBuilder().partitions(
+            result.partitions().stream()
+                .map(p -> p.toBuilder().databaseName(originalDatabaseName).build())
+                .collect(Collectors.toList())
+        ).build();
     }
 
     @Override
-    public CreatePartitionResult createPartition(CreatePartitionRequest createPartitionRequest) {
-        configureRequest(
-                createPartitionRequest::getDatabaseName,
-                createPartitionRequest::setDatabaseName,
-                createPartitionRequest::setCatalogId
-        );
-        return super.createPartition(createPartitionRequest);
+    public CreateDatabaseResponse createDatabase(CreateDatabaseRequest request) {
+        if (request.databaseInput() != null) {
+            CatalogResult cr = extractCatalog(request.databaseInput().name());
+            if (cr != null) {
+                request = request.toBuilder()
+                    .catalogId(cr.catalogId)
+                    .databaseInput(request.databaseInput().toBuilder().name(cr.databaseName).build())
+                    .build();
+            }
+        }
+        return super.createDatabase(request);
     }
 
     @Override
-    public CreateTableResult createTable(CreateTableRequest createTableRequest) {
-        configureRequest(
-                createTableRequest::getDatabaseName,
-                createTableRequest::setDatabaseName,
-                createTableRequest::setCatalogId
-        );
-        return super.createTable(createTableRequest);
+    public CreatePartitionResponse createPartition(CreatePartitionRequest request) {
+        CatalogResult cr = extractCatalog(request.databaseName());
+        if (cr != null) {
+            request = request.toBuilder().databaseName(cr.databaseName).catalogId(cr.catalogId).build();
+        }
+        return super.createPartition(request);
     }
 
     @Override
-    public CreateUserDefinedFunctionResult createUserDefinedFunction(CreateUserDefinedFunctionRequest createUserDefinedFunctionRequest) {
-        configureRequest(
-                createUserDefinedFunctionRequest::getDatabaseName,
-                createUserDefinedFunctionRequest::setDatabaseName,
-                createUserDefinedFunctionRequest::setCatalogId
-        );
-        return super.createUserDefinedFunction(createUserDefinedFunctionRequest);
+    public CreateTableResponse createTable(CreateTableRequest request) {
+        CatalogResult cr = extractCatalog(request.databaseName());
+        if (cr != null) {
+            request = request.toBuilder().databaseName(cr.databaseName).catalogId(cr.catalogId).build();
+        }
+        return super.createTable(request);
     }
 
     @Override
-    public DeleteDatabaseResult deleteDatabase(DeleteDatabaseRequest deleteDatabaseRequest) {
-        configureRequest(
-                deleteDatabaseRequest::getName,
-                deleteDatabaseRequest::setName,
-                deleteDatabaseRequest::setCatalogId
-        );
-        return super.deleteDatabase(deleteDatabaseRequest);
+    public CreateUserDefinedFunctionResponse createUserDefinedFunction(CreateUserDefinedFunctionRequest request) {
+        CatalogResult cr = extractCatalog(request.databaseName());
+        if (cr != null) {
+            request = request.toBuilder().databaseName(cr.databaseName).catalogId(cr.catalogId).build();
+        }
+        return super.createUserDefinedFunction(request);
     }
 
     @Override
-    public DeletePartitionResult deletePartition(DeletePartitionRequest deletePartitionRequest) {
-        configureRequest(
-                deletePartitionRequest::getDatabaseName,
-                deletePartitionRequest::setDatabaseName,
-                deletePartitionRequest::setCatalogId
-        );
-        return super.deletePartition(deletePartitionRequest);
+    public DeleteDatabaseResponse deleteDatabase(DeleteDatabaseRequest request) {
+        CatalogResult cr = extractCatalog(request.name());
+        if (cr != null) {
+            request = request.toBuilder().name(cr.databaseName).catalogId(cr.catalogId).build();
+        }
+        return super.deleteDatabase(request);
     }
 
     @Override
-    public DeleteTableResult deleteTable(DeleteTableRequest deleteTableRequest) {
-        configureRequest(
-                deleteTableRequest::getDatabaseName,
-                deleteTableRequest::setDatabaseName,
-                deleteTableRequest::setCatalogId
-        );
-        return super.deleteTable(deleteTableRequest);
+    public DeletePartitionResponse deletePartition(DeletePartitionRequest request) {
+        CatalogResult cr = extractCatalog(request.databaseName());
+        if (cr != null) {
+            request = request.toBuilder().databaseName(cr.databaseName).catalogId(cr.catalogId).build();
+        }
+        return super.deletePartition(request);
     }
 
     @Override
-    public DeleteUserDefinedFunctionResult deleteUserDefinedFunction(DeleteUserDefinedFunctionRequest deleteUserDefinedFunctionRequest) {
-        configureRequest(
-                deleteUserDefinedFunctionRequest::getDatabaseName,
-                deleteUserDefinedFunctionRequest::setDatabaseName,
-                deleteUserDefinedFunctionRequest::setCatalogId
-        );
-        return super.deleteUserDefinedFunction(deleteUserDefinedFunctionRequest);
+    public DeleteTableResponse deleteTable(DeleteTableRequest request) {
+        CatalogResult cr = extractCatalog(request.databaseName());
+        if (cr != null) {
+            request = request.toBuilder().databaseName(cr.databaseName).catalogId(cr.catalogId).build();
+        }
+        return super.deleteTable(request);
     }
 
     @Override
-    public GetDatabaseResult getDatabase(GetDatabaseRequest getDatabaseRequest) {
-        String originalDatabaseName = getDatabaseRequest.getName();
-        configureRequest(
-                getDatabaseRequest::getName,
-                getDatabaseRequest::setName,
-                getDatabaseRequest::setCatalogId
-        );
-        GetDatabaseResult result = super.getDatabase(getDatabaseRequest);
-        result.getDatabase().setName(originalDatabaseName);
-        return result;
+    public DeleteUserDefinedFunctionResponse deleteUserDefinedFunction(DeleteUserDefinedFunctionRequest request) {
+        CatalogResult cr = extractCatalog(request.databaseName());
+        if (cr != null) {
+            request = request.toBuilder().databaseName(cr.databaseName).catalogId(cr.catalogId).build();
+        }
+        return super.deleteUserDefinedFunction(request);
     }
 
     @Override
-    public GetPartitionResult getPartition(GetPartitionRequest getPartitionRequest) {
-        String originalDatabaseName = getPartitionRequest.getDatabaseName();
-        configureRequest(
-                getPartitionRequest::getDatabaseName,
-                getPartitionRequest::setDatabaseName,
-                getPartitionRequest::setCatalogId
-        );
-        GetPartitionResult result = super.getPartition(getPartitionRequest);
-        result.getPartition().setDatabaseName(originalDatabaseName);
-        return result;
+    public GetDatabaseResponse getDatabase(GetDatabaseRequest request) {
+        String originalDatabaseName = request.name();
+        CatalogResult cr = extractCatalog(originalDatabaseName);
+        if (cr != null) {
+            request = request.toBuilder().name(cr.databaseName).catalogId(cr.catalogId).build();
+        }
+        GetDatabaseResponse result = super.getDatabase(request);
+        return result.toBuilder()
+            .database(result.database().toBuilder().name(originalDatabaseName).build())
+            .build();
     }
 
     @Override
-    public GetPartitionsResult getPartitions(GetPartitionsRequest getPartitionsRequest) {
-        String originalDatabaseName = getPartitionsRequest.getDatabaseName();
-        configureRequest(
-                getPartitionsRequest::getDatabaseName,
-                getPartitionsRequest::setDatabaseName,
-                getPartitionsRequest::setCatalogId
-        );
-        GetPartitionsResult result = super.getPartitions(getPartitionsRequest);
-        result.getPartitions().forEach(partition -> partition.setDatabaseName(originalDatabaseName));
-        return result;
+    public GetPartitionResponse getPartition(GetPartitionRequest request) {
+        String originalDatabaseName = request.databaseName();
+        CatalogResult cr = extractCatalog(originalDatabaseName);
+        if (cr != null) {
+            request = request.toBuilder().databaseName(cr.databaseName).catalogId(cr.catalogId).build();
+        }
+        GetPartitionResponse result = super.getPartition(request);
+        return result.toBuilder()
+            .partition(result.partition().toBuilder().databaseName(originalDatabaseName).build())
+            .build();
     }
 
     @Override
-    public GetTableResult getTable(GetTableRequest getTableRequest) {
-        String originalDatabaseName = getTableRequest.getDatabaseName();
-        configureRequest(
-                getTableRequest::getDatabaseName,
-                getTableRequest::setDatabaseName,
-                getTableRequest::setCatalogId
-        );
-        GetTableResult result = super.getTable(getTableRequest);
-        result.getTable().setDatabaseName(originalDatabaseName);
-        return result;
+    public GetPartitionsResponse getPartitions(GetPartitionsRequest request) {
+        String originalDatabaseName = request.databaseName();
+        CatalogResult cr = extractCatalog(originalDatabaseName);
+        if (cr != null) {
+            request = request.toBuilder().databaseName(cr.databaseName).catalogId(cr.catalogId).build();
+        }
+        GetPartitionsResponse result = super.getPartitions(request);
+        return result.toBuilder().partitions(
+            result.partitions().stream()
+                .map(p -> p.toBuilder().databaseName(originalDatabaseName).build())
+                .collect(Collectors.toList())
+        ).build();
     }
 
     @Override
-    public GetTableVersionsResult getTableVersions(GetTableVersionsRequest getTableVersionsRequest) {
-        String originalDatabaseName = getTableVersionsRequest.getDatabaseName();
-        configureRequest(
-                getTableVersionsRequest::getDatabaseName,
-                getTableVersionsRequest::setDatabaseName,
-                getTableVersionsRequest::setCatalogId
-        );
-        GetTableVersionsResult result = super.getTableVersions(getTableVersionsRequest);
-        result.getTableVersions().forEach(tableVersion -> tableVersion.getTable().setDatabaseName(originalDatabaseName));
-        return result;
+    public GetTableResponse getTable(GetTableRequest request) {
+        String originalDatabaseName = request.databaseName();
+        CatalogResult cr = extractCatalog(originalDatabaseName);
+        if (cr != null) {
+            request = request.toBuilder().databaseName(cr.databaseName).catalogId(cr.catalogId).build();
+        }
+        GetTableResponse result = super.getTable(request);
+        return result.toBuilder()
+            .table(result.table().toBuilder().databaseName(originalDatabaseName).build())
+            .build();
     }
 
     @Override
-    public GetTablesResult getTables(GetTablesRequest getTablesRequest) {
-        String originalDatabaseName = getTablesRequest.getDatabaseName();
-        configureRequest(
-                getTablesRequest::getDatabaseName,
-                getTablesRequest::setDatabaseName,
-                getTablesRequest::setCatalogId
-        );
-        GetTablesResult result = super.getTables(getTablesRequest);
-        result.getTableList().forEach(table -> table.setDatabaseName(originalDatabaseName));
-        return result;
+    public GetTableVersionsResponse getTableVersions(GetTableVersionsRequest request) {
+        String originalDatabaseName = request.databaseName();
+        CatalogResult cr = extractCatalog(originalDatabaseName);
+        if (cr != null) {
+            request = request.toBuilder().databaseName(cr.databaseName).catalogId(cr.catalogId).build();
+        }
+        GetTableVersionsResponse result = super.getTableVersions(request);
+        return result.toBuilder().tableVersions(
+            result.tableVersions().stream()
+                .map(tv -> tv.toBuilder()
+                    .table(tv.table().toBuilder().databaseName(originalDatabaseName).build())
+                    .build())
+                .collect(Collectors.toList())
+        ).build();
     }
 
     @Override
-    public GetUserDefinedFunctionResult getUserDefinedFunction(GetUserDefinedFunctionRequest getUserDefinedFunctionRequest) {
-        configureRequest(
-                getUserDefinedFunctionRequest::getDatabaseName,
-                getUserDefinedFunctionRequest::setDatabaseName,
-                getUserDefinedFunctionRequest::setCatalogId
-        );
-        return super.getUserDefinedFunction(getUserDefinedFunctionRequest);
+    public GetTablesResponse getTables(GetTablesRequest request) {
+        String originalDatabaseName = request.databaseName();
+        CatalogResult cr = extractCatalog(originalDatabaseName);
+        if (cr != null) {
+            request = request.toBuilder().databaseName(cr.databaseName).catalogId(cr.catalogId).build();
+        }
+        GetTablesResponse result = super.getTables(request);
+        return result.toBuilder().tableList(
+            result.tableList().stream()
+                .map(t -> t.toBuilder().databaseName(originalDatabaseName).build())
+                .collect(Collectors.toList())
+        ).build();
     }
 
     @Override
-    public GetUserDefinedFunctionsResult getUserDefinedFunctions(GetUserDefinedFunctionsRequest getUserDefinedFunctionsRequest) {
-        configureRequest(
-                getUserDefinedFunctionsRequest::getDatabaseName,
-                getUserDefinedFunctionsRequest::setDatabaseName,
-                getUserDefinedFunctionsRequest::setCatalogId
-        );
-        return super.getUserDefinedFunctions(getUserDefinedFunctionsRequest);
+    public GetUserDefinedFunctionResponse getUserDefinedFunction(GetUserDefinedFunctionRequest request) {
+        CatalogResult cr = extractCatalog(request.databaseName());
+        if (cr != null) {
+            request = request.toBuilder().databaseName(cr.databaseName).catalogId(cr.catalogId).build();
+        }
+        return super.getUserDefinedFunction(request);
     }
 
     @Override
-    public UpdateDatabaseResult updateDatabase(UpdateDatabaseRequest updateDatabaseRequest) {
-        configureRequest(
-                updateDatabaseRequest::getName,
-                updateDatabaseRequest::setName,
-                updateDatabaseRequest::setCatalogId
-        );
-        configureRequest(
-                () -> updateDatabaseRequest.getDatabaseInput().getName(),
-                name -> updateDatabaseRequest.getDatabaseInput().setName(name),
-                catalogId -> {}
-        );
-        return super.updateDatabase(updateDatabaseRequest);
+    public GetUserDefinedFunctionsResponse getUserDefinedFunctions(GetUserDefinedFunctionsRequest request) {
+        CatalogResult cr = extractCatalog(request.databaseName());
+        if (cr != null) {
+            request = request.toBuilder().databaseName(cr.databaseName).catalogId(cr.catalogId).build();
+        }
+        return super.getUserDefinedFunctions(request);
     }
 
     @Override
-    public UpdatePartitionResult updatePartition(UpdatePartitionRequest updatePartitionRequest) {
-        configureRequest(
-                updatePartitionRequest::getDatabaseName,
-                updatePartitionRequest::setDatabaseName,
-                updatePartitionRequest::setCatalogId
-        );
-        return super.updatePartition(updatePartitionRequest);
+    public UpdateDatabaseResponse updateDatabase(UpdateDatabaseRequest request) {
+        CatalogResult cr = extractCatalog(request.name());
+        if (cr != null) {
+            request = request.toBuilder().name(cr.databaseName).catalogId(cr.catalogId).build();
+        }
+        if (request.databaseInput() != null) {
+            CatalogResult crInput = extractCatalog(request.databaseInput().name());
+            if (crInput != null) {
+                request = request.toBuilder()
+                    .databaseInput(request.databaseInput().toBuilder().name(crInput.databaseName).build())
+                    .build();
+            }
+        }
+        return super.updateDatabase(request);
     }
 
     @Override
-    public UpdateTableResult updateTable(UpdateTableRequest updateTableRequest) {
-        configureRequest(
-                updateTableRequest::getDatabaseName,
-                updateTableRequest::setDatabaseName,
-                updateTableRequest::setCatalogId
-        );
-        return super.updateTable(updateTableRequest);
+    public UpdatePartitionResponse updatePartition(UpdatePartitionRequest request) {
+        CatalogResult cr = extractCatalog(request.databaseName());
+        if (cr != null) {
+            request = request.toBuilder().databaseName(cr.databaseName).catalogId(cr.catalogId).build();
+        }
+        return super.updatePartition(request);
     }
 
     @Override
-    public UpdateUserDefinedFunctionResult updateUserDefinedFunction(UpdateUserDefinedFunctionRequest updateUserDefinedFunctionRequest) {
-        configureRequest(
-                updateUserDefinedFunctionRequest::getDatabaseName,
-                updateUserDefinedFunctionRequest::setDatabaseName,
-                updateUserDefinedFunctionRequest::setCatalogId
-        );
-        return super.updateUserDefinedFunction(updateUserDefinedFunctionRequest);
+    public UpdateTableResponse updateTable(UpdateTableRequest request) {
+        CatalogResult cr = extractCatalog(request.databaseName());
+        if (cr != null) {
+            request = request.toBuilder().databaseName(cr.databaseName).catalogId(cr.catalogId).build();
+        }
+        return super.updateTable(request);
+    }
+
+    @Override
+    public UpdateUserDefinedFunctionResponse updateUserDefinedFunction(UpdateUserDefinedFunctionRequest request) {
+        CatalogResult cr = extractCatalog(request.databaseName());
+        if (cr != null) {
+            request = request.toBuilder().databaseName(cr.databaseName).catalogId(cr.catalogId).build();
+        }
+        return super.updateUserDefinedFunction(request);
     }
 }

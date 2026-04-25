@@ -1,6 +1,6 @@
 package com.amazonaws.glue.catalog.metastore;
 
-import com.amazonaws.services.glue.AWSGlue;
+import software.amazon.awssdk.services.glue.GlueClient;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 
 /***
@@ -8,6 +8,6 @@ import org.apache.hadoop.hive.metastore.api.MetaException;
  */
 public interface GlueClientFactory {
 
-  AWSGlue newClient() throws MetaException;
+  GlueClient newClient() throws MetaException;
 
 }

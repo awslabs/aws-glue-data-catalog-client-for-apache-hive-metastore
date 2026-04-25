@@ -6,12 +6,12 @@ import com.amazonaws.glue.catalog.converters.GlueInputConverter;
 import com.amazonaws.glue.catalog.metastore.AWSCatalogMetastoreClient;
 import com.amazonaws.glue.catalog.metastore.GlueClientFactory;
 import com.amazonaws.glue.catalog.util.GlueTestClientFactory;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.CreateDatabaseRequest;
-import com.amazonaws.services.glue.model.DeleteDatabaseRequest;
-import com.amazonaws.services.glue.model.DeleteTableRequest;
-import com.amazonaws.services.glue.model.GetTablesRequest;
-import com.amazonaws.services.glue.model.GetTablesResult;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.CreateDatabaseRequest;
+import software.amazon.awssdk.services.glue.model.DeleteDatabaseRequest;
+import software.amazon.awssdk.services.glue.model.DeleteTableRequest;
+import software.amazon.awssdk.services.glue.model.GetTablesRequest;
+import software.amazon.awssdk.services.glue.model.GetTablesResult;
 
 import com.google.common.collect.Lists;
 import org.apache.hadoop.fs.Path;
@@ -53,13 +53,13 @@ public class MetastoreClientTableIntegrationTest {
   private static IMetaStoreClient metastoreClient;
   private static Warehouse wh;
   private static Database hiveDB;
-  private static com.amazonaws.services.glue.model.Database catalogDB;
+  private static software.amazon.awssdk.services.glue.model.Database catalogDB;
   private static HiveConf conf;
   private static Path tmpPath;
   private static String invalidTable = "Invalid_Table";
   private static String invalidDatabase = "Invalid_Database";
 
-  private com.amazonaws.services.glue.model.Table catalogTable;
+  private software.amazon.awssdk.services.glue.model.Table catalogTable;
   private Table hiveTable;
   private CatalogToHiveConverter catalogToHiveConverter = new BaseCatalogToHiveConverter();
 
@@ -98,7 +98,7 @@ public class MetastoreClientTableIntegrationTest {
       GetTablesResult result = glueClient.getTables(new GetTablesRequest().withDatabaseName(
           catalogDB.getName()).withNextToken(token));
       token = result.getNextToken();
-      for (com.amazonaws.services.glue.model.Table table : result.getTableList()) {
+      for (software.amazon.awssdk.services.glue.model.Table table : result.getTableList()) {
         glueClient.deleteTable(new DeleteTableRequest().withDatabaseName(catalogDB.getName())
                 .withName(table.getName()));
       }

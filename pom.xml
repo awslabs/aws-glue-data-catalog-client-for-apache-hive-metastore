@@ -19,9 +19,10 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <guava.version>28.2-jre</guava.version>
-    <hive3.version>3.1.3</hive3.version>
-    <spark-hive.version>2.3.10-SNAPSHOT</spark-hive.version>
-    <aws.sdk.version>1.12.31</aws.sdk.version>
+    <hive3.version>3.1.3-amzn-21</hive3.version>
+    <spark-hive.version>2.3.9-amzn-4</spark-hive.version>
+    <aws.sdkv2.version>2.44.6</aws.sdkv2.version>
+    <spark.version>3.5.6-amzn-1</spark.version>
     <junit.version>4.11</junit.version>
     <mockito.version>1.10.19</mockito.version>
     <powermock.version>1.7.1</powermock.version>
@@ -131,4 +132,10 @@
     </plugins>
   </reporting>
 
+  <repositories>
+    <repository>
+      <id>conjars</id>
+      <url>https://conjars.wensel.net/repo/</url>
+    </repository>
+  </repositories>
 </project>

@@ -1,65 +1,65 @@
 package com.amazonaws.glue.catalog.metastore;
 
-import com.amazonaws.AmazonServiceException;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import com.amazonaws.glue.catalog.converters.BaseCatalogToHiveConverter;
 import com.amazonaws.glue.catalog.converters.CatalogToHiveConverter;
 import com.amazonaws.glue.catalog.converters.CatalogToHiveConverterFactory;
 import com.amazonaws.glue.catalog.converters.GlueInputConverter;
 import com.amazonaws.glue.catalog.converters.HiveToCatalogConverter;
 import com.amazonaws.glue.catalog.util.TestObjects;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.AlreadyExistsException;
-import com.amazonaws.services.glue.model.BatchCreatePartitionRequest;
-import com.amazonaws.services.glue.model.BatchCreatePartitionResult;
-import com.amazonaws.services.glue.model.BatchGetPartitionRequest;
-import com.amazonaws.services.glue.model.BatchGetPartitionResult;
-import com.amazonaws.services.glue.model.CreateDatabaseRequest;
-import com.amazonaws.services.glue.model.CreateTableRequest;
-import com.amazonaws.services.glue.model.CreateUserDefinedFunctionRequest;
-import com.amazonaws.services.glue.model.Database;
-import com.amazonaws.services.glue.model.DeleteColumnStatisticsForPartitionRequest;
-import com.amazonaws.services.glue.model.DeleteColumnStatisticsForTableRequest;
-import com.amazonaws.services.glue.model.DeleteDatabaseRequest;
-import com.amazonaws.services.glue.model.DeletePartitionRequest;
-import com.amazonaws.services.glue.model.DeletePartitionResult;
-import com.amazonaws.services.glue.model.DeleteTableRequest;
-import com.amazonaws.services.glue.model.DeleteUserDefinedFunctionRequest;
-import com.amazonaws.services.glue.model.EntityNotFoundException;
-import com.amazonaws.services.glue.model.GetColumnStatisticsForPartitionResult;
-import com.amazonaws.services.glue.model.GetColumnStatisticsForTableResult;
-import com.amazonaws.services.glue.model.GetDatabaseRequest;
-import com.amazonaws.services.glue.model.GetDatabaseResult;
-import com.amazonaws.services.glue.model.GetDatabasesRequest;
-import com.amazonaws.services.glue.model.GetDatabasesResult;
-import com.amazonaws.services.glue.model.GetPartitionRequest;
-import com.amazonaws.services.glue.model.GetPartitionResult;
-import com.amazonaws.services.glue.model.GetPartitionsRequest;
-import com.amazonaws.services.glue.model.GetPartitionsResult;
-import com.amazonaws.services.glue.model.GetTableRequest;
-import com.amazonaws.services.glue.model.GetTableResult;
-import com.amazonaws.services.glue.model.GetTablesRequest;
-import com.amazonaws.services.glue.model.GetTablesResult;
-import com.amazonaws.services.glue.model.GetUserDefinedFunctionRequest;
-import com.amazonaws.services.glue.model.GetUserDefinedFunctionResult;
-import com.amazonaws.services.glue.model.GetUserDefinedFunctionsRequest;
-import com.amazonaws.services.glue.model.GetUserDefinedFunctionsResult;
-import com.amazonaws.services.glue.model.InternalServiceException;
-import com.amazonaws.services.glue.model.InvalidInputException;
-import com.amazonaws.services.glue.model.OperationTimeoutException;
-import com.amazonaws.services.glue.model.Partition;
-import com.amazonaws.services.glue.model.PartitionInput;
-import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.glue.model.TableInput;
-import com.amazonaws.services.glue.model.UpdateColumnStatisticsForPartitionRequest;
-import com.amazonaws.services.glue.model.UpdateColumnStatisticsForPartitionResult;
-import com.amazonaws.services.glue.model.UpdateColumnStatisticsForTableRequest;
-import com.amazonaws.services.glue.model.UpdateColumnStatisticsForTableResult;
-import com.amazonaws.services.glue.model.UpdateDatabaseRequest;
-import com.amazonaws.services.glue.model.UpdatePartitionRequest;
-import com.amazonaws.services.glue.model.UpdatePartitionResult;
-import com.amazonaws.services.glue.model.UpdateTableRequest;
-import com.amazonaws.services.glue.model.UpdateUserDefinedFunctionRequest;
-import com.amazonaws.services.glue.model.UserDefinedFunction;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.AlreadyExistsException;
+import software.amazon.awssdk.services.glue.model.BatchCreatePartitionRequest;
+import software.amazon.awssdk.services.glue.model.BatchCreatePartitionResult;
+import software.amazon.awssdk.services.glue.model.BatchGetPartitionRequest;
+import software.amazon.awssdk.services.glue.model.BatchGetPartitionResult;
+import software.amazon.awssdk.services.glue.model.CreateDatabaseRequest;
+import software.amazon.awssdk.services.glue.model.CreateTableRequest;
+import software.amazon.awssdk.services.glue.model.CreateUserDefinedFunctionRequest;
+import software.amazon.awssdk.services.glue.model.Database;
+import software.amazon.awssdk.services.glue.model.DeleteColumnStatisticsForPartitionRequest;
+import software.amazon.awssdk.services.glue.model.DeleteColumnStatisticsForTableRequest;
+import software.amazon.awssdk.services.glue.model.DeleteDatabaseRequest;
+import software.amazon.awssdk.services.glue.model.DeletePartitionRequest;
+import software.amazon.awssdk.services.glue.model.DeletePartitionResult;
+import software.amazon.awssdk.services.glue.model.DeleteTableRequest;
+import software.amazon.awssdk.services.glue.model.DeleteUserDefinedFunctionRequest;
+import software.amazon.awssdk.services.glue.model.EntityNotFoundException;
+import software.amazon.awssdk.services.glue.model.GetColumnStatisticsForPartitionResult;
+import software.amazon.awssdk.services.glue.model.GetColumnStatisticsForTableResult;
+import software.amazon.awssdk.services.glue.model.GetDatabaseRequest;
+import software.amazon.awssdk.services.glue.model.GetDatabaseResult;
+import software.amazon.awssdk.services.glue.model.GetDatabasesRequest;
+import software.amazon.awssdk.services.glue.model.GetDatabasesResult;
+import software.amazon.awssdk.services.glue.model.GetPartitionRequest;
+import software.amazon.awssdk.services.glue.model.GetPartitionResult;
+import software.amazon.awssdk.services.glue.model.GetPartitionsRequest;
+import software.amazon.awssdk.services.glue.model.GetPartitionsResult;
+import software.amazon.awssdk.services.glue.model.GetTableRequest;
+import software.amazon.awssdk.services.glue.model.GetTableResult;
+import software.amazon.awssdk.services.glue.model.GetTablesRequest;
+import software.amazon.awssdk.services.glue.model.GetTablesResult;
+import software.amazon.awssdk.services.glue.model.GetUserDefinedFunctionRequest;
+import software.amazon.awssdk.services.glue.model.GetUserDefinedFunctionResult;
+import software.amazon.awssdk.services.glue.model.GetUserDefinedFunctionsRequest;
+import software.amazon.awssdk.services.glue.model.GetUserDefinedFunctionsResult;
+import software.amazon.awssdk.services.glue.model.InternalServiceException;
+import software.amazon.awssdk.services.glue.model.InvalidInputException;
+import software.amazon.awssdk.services.glue.model.OperationTimeoutException;
+import software.amazon.awssdk.services.glue.model.Partition;
+import software.amazon.awssdk.services.glue.model.PartitionInput;
+import software.amazon.awssdk.services.glue.model.Table;
+import software.amazon.awssdk.services.glue.model.TableInput;
+import software.amazon.awssdk.services.glue.model.UpdateColumnStatisticsForPartitionRequest;
+import software.amazon.awssdk.services.glue.model.UpdateColumnStatisticsForPartitionResult;
+import software.amazon.awssdk.services.glue.model.UpdateColumnStatisticsForTableRequest;
+import software.amazon.awssdk.services.glue.model.UpdateColumnStatisticsForTableResult;
+import software.amazon.awssdk.services.glue.model.UpdateDatabaseRequest;
+import software.amazon.awssdk.services.glue.model.UpdatePartitionRequest;
+import software.amazon.awssdk.services.glue.model.UpdatePartitionResult;
+import software.amazon.awssdk.services.glue.model.UpdateTableRequest;
+import software.amazon.awssdk.services.glue.model.UpdateUserDefinedFunctionRequest;
+import software.amazon.awssdk.services.glue.model.UserDefinedFunction;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -589,7 +589,7 @@ public class GlueMetastoreClientDelegateTest {
 
     when(glueClient.getPartitions(any(GetPartitionsRequest.class)))
         .thenReturn(new GetPartitionsResult().withPartitions(partition));
-    when(glueClient.updatePartition(any(UpdatePartitionRequest.class))).thenThrow(new AmazonServiceException("Error"));
+    when(glueClient.updatePartition(any(UpdatePartitionRequest.class))).thenThrow(new AwsServiceException("Error"));
 
     EnvironmentContext ec = new EnvironmentContext();
     ec.putToProperties("CASCADE", StatsSetupConst.TRUE);
@@ -1246,7 +1246,7 @@ public class GlueMetastoreClientDelegateTest {
 
     when(glueClient.batchCreatePartition(any(BatchCreatePartitionRequest.class)))
       .thenReturn(new BatchCreatePartitionResult().withErrors(TestObjects.getPartitionError(values,
-        new com.amazonaws.services.glue.model.AlreadyExistsException("exception"))));
+        new software.amazon.awssdk.services.glue.model.AlreadyExistsException("exception"))));
     when(glueClient.getTable(any(GetTableRequest.class)))
       .thenReturn(new GetTableResult().withTable(testTbl));
 
@@ -1316,7 +1316,7 @@ public class GlueMetastoreClientDelegateTest {
     List<String> values = ImmutableList.of("foo1");
     when(glueClient.batchCreatePartition(any(BatchCreatePartitionRequest.class)))
       .thenReturn(new BatchCreatePartitionResult().withErrors(TestObjects.getPartitionError(values,
-        new com.amazonaws.services.glue.model.AlreadyExistsException("exception"))));
+        new software.amazon.awssdk.services.glue.model.AlreadyExistsException("exception"))));
     when(glueClient.getTable(any(GetTableRequest.class)))
       .thenReturn(new GetTableResult().withTable(testTbl));
 
@@ -1735,7 +1735,7 @@ public class GlueMetastoreClientDelegateTest {
     udf.setClassName("test-class");
     udf.setCreateTime(new Date());
     udf.setOwnerName("test-owner");
-    udf.setOwnerType(com.amazonaws.services.glue.model.PrincipalType.USER.name());
+    udf.setOwnerType(software.amazon.awssdk.services.glue.model.PrincipalType.USER.name());
     return udf;
   }
 

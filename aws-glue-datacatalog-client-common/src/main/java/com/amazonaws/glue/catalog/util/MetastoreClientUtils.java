@@ -75,7 +75,7 @@ public final class MetastoreClientUtils {
    * users manually or through Crawlers. Validates that table contains properties required by Hive/Spark.
    * @param table
    */
-  public static void validateGlueTable(com.amazonaws.services.glue.model.Table table) {
+  public static void validateGlueTable(software.amazon.awssdk.services.glue.model.Table table) {
     checkNotNull(table, "table cannot be null");
 
     for (HiveTableValidator validator : HiveTableValidator.values()) {

@@ -5,9 +5,9 @@ import com.amazonaws.glue.catalog.converters.CatalogToHiveConverter;
 import com.amazonaws.glue.catalog.metastore.AWSCatalogMetastoreClient;
 import com.amazonaws.glue.catalog.metastore.GlueClientFactory;
 import com.amazonaws.glue.catalog.util.GlueTestClientFactory;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.DeleteDatabaseRequest;
-import com.amazonaws.services.glue.model.EntityNotFoundException;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.DeleteDatabaseRequest;
+import software.amazon.awssdk.services.glue.model.EntityNotFoundException;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -42,7 +42,7 @@ public class MetastoreClientDatabaseIntegrationTest {
   private IMetaStoreClient metastoreClient;
   private Warehouse wh;
   private Database hiveDB;
-  private com.amazonaws.services.glue.model.Database catalogDB;
+  private software.amazon.awssdk.services.glue.model.Database catalogDB;
   private HiveConf conf;
   private Path tmpPath;
   private List<String> additionalDbForCleanup;

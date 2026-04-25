@@ -1,6 +1,6 @@
 package com.amazonaws.glue.catalog.metastore;
 
-import com.amazonaws.AmazonServiceException;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import com.amazonaws.glue.catalog.converters.CatalogToHiveConverter;
 import com.amazonaws.glue.catalog.converters.GlueInputConverter;
 import com.amazonaws.glue.catalog.converters.Hive3CatalogToHiveConverter;
@@ -10,12 +10,12 @@ import com.amazonaws.glue.catalog.util.LoggingHelper;
 import com.amazonaws.glue.catalog.util.MetastoreClientUtils;
 import com.amazonaws.glue.shims.AwsGlueHiveShims;
 import com.amazonaws.glue.shims.ShimsLoader;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.AlreadyExistsException;
-import com.amazonaws.services.glue.model.EntityNotFoundException;
-import com.amazonaws.services.glue.model.GetDatabaseRequest;
-import com.amazonaws.services.glue.model.Partition;
-import com.amazonaws.services.glue.model.UpdatePartitionRequest;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.AlreadyExistsException;
+import software.amazon.awssdk.services.glue.model.EntityNotFoundException;
+import software.amazon.awssdk.services.glue.model.GetDatabaseRequest;
+import software.amazon.awssdk.services.glue.model.Partition;
+import software.amazon.awssdk.services.glue.model.UpdatePartitionRequest;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -151,7 +151,7 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
   private static final Logger logger = Logger.getLogger(AWSCatalogMetastoreClient.class);
 
   private final Configuration conf;
-  private final AWSGlue glueClient;
+  private final GlueClient glueClient;
   private final Warehouse wh;
   private final GlueMetastoreClientDelegate glueMetastoreClientDelegate;
   private final String catalogId;
@@ -279,12 +279,12 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
   private boolean doesDefaultDBExist() throws MetaException {
     
     try {
-      GetDatabaseRequest getDatabaseRequest = new GetDatabaseRequest().withName(DEFAULT_DATABASE_NAME).withCatalogId(
-          catalogId);
+      GetDatabaseRequest getDatabaseRequest = GetDatabaseRequest.builder().name(DEFAULT_DATABASE_NAME).catalogId(
+          catalogId).build();
       glueClient.getDatabase(getDatabaseRequest);
     } catch (EntityNotFoundException e) {
       return false;
-    } catch (AmazonServiceException e) {
+    } catch (AwsServiceException e) {
       String msg = "Unable to verify existence of default database: ";
       logger.error(msg, e);
       throw new MetaException(msg + e);
@@ -962,9 +962,9 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
     Preconditions.checkArgument(dbName != null, "Database name cannot be null");
     Preconditions.checkArgument(tableName != null, "Table name cannot be null");
     for (Partition partition : partitionsToDelete) {
-      Preconditions.checkArgument(dbName.equals(partition.getDatabaseName()), "Database name cannot be null");
-      Preconditions.checkArgument(tableName.equals(partition.getTableName()), "Table name cannot be null");
-      Preconditions.checkArgument(partition.getValues() != null, "Partition values cannot be null");
+      Preconditions.checkArgument(dbName.equals(partition.databaseName()), "Database name cannot be null");
+      Preconditions.checkArgument(tableName.equals(partition.tableName()), "Table name cannot be null");
+      Preconditions.checkArgument(partition.values() != null, "Partition values cannot be null");
     }
   }
 
@@ -1179,27 +1179,27 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
 
   @Override
   public void createCatalog(Catalog catalog) throws org.apache.hadoop.hive.metastore.api.AlreadyExistsException, InvalidObjectException, MetaException, TException {
-    throw new UnsupportedOperationException("createCatalog is not supported");
+    glueMetastoreClientDelegate.createCatalog(catalog);
   }
 
   @Override
   public void alterCatalog(String s, Catalog catalog) throws NoSuchObjectException, InvalidObjectException, MetaException, TException {
-    throw new UnsupportedOperationException("alterCatalog is not supported");
+    glueMetastoreClientDelegate.alterCatalog(s, catalog);
   }
 
   @Override
   public Catalog getCatalog(String s) throws NoSuchObjectException, MetaException, TException {
-    throw new UnsupportedOperationException("getCatalog is not supported");
+    return glueMetastoreClientDelegate.getCatalog(s);
   }
 
   @Override
   public List<String> getCatalogs() throws MetaException, TException {
-    throw new UnsupportedOperationException("getCatalogs is not supported");
+    return glueMetastoreClientDelegate.getCatalogs();
   }
 
   @Override
   public void dropCatalog(String s) throws NoSuchObjectException, InvalidOperationException, MetaException, TException {
-    throw new UnsupportedOperationException("dropCatalog is not supported");
+    glueMetastoreClientDelegate.dropCatalog(s);
   }
 
   @Override
@@ -1952,12 +1952,13 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
         throws InvalidOperationException, MetaException, TException {
     try {
       glueClient.updatePartition(
-          new UpdatePartitionRequest()
-          .withDatabaseName(databaseName)
-          .withTableName(tableName)
-          .withPartitionValueList(partitionValues)
-          .withPartitionInput(GlueInputConverter.convertToPartitionInput(newPartition)));
-    } catch (AmazonServiceException e) {
+          UpdatePartitionRequest.builder()
+          .databaseName(databaseName)
+          .tableName(tableName)
+          .partitionValueList(partitionValues)
+          .partitionInput(GlueInputConverter.convertToPartitionInput(newPartition))
+          .build());
+    } catch (AwsServiceException e) {
       throw catalogToHiveConverter.wrapInHiveException(e);
     }
   }

@@ -2,8 +2,8 @@ package com.amazonaws.glue.catalog.metastore;
 
 import com.amazonaws.glue.catalog.converters.CatalogToHiveConverter;
 import com.amazonaws.glue.catalog.converters.Hive3CatalogToHiveConverter;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.UserDefinedFunction;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.UserDefinedFunction;
 import org.apache.commons.lang.RandomStringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.metastore.api.ForeignKeysRequest;

@@ -1,9 +1,8 @@
 package com.amazonaws.glue.catalog.metastore;
 
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.auth.AWSSessionCredentials;
-import com.amazonaws.auth.BasicSessionCredentials;
-import com.amazonaws.internal.StaticCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 
 import org.apache.hadoop.conf.Configuration;
 
@@ -16,7 +15,7 @@ public class SessionCredentialsProviderFactory implements AWSCredentialsProvider
   public final static String AWS_SESSION_TOKEN_CONF_VAR = "hive.aws_session_token";
   
   @Override
-  public AWSCredentialsProvider buildAWSCredentialsProvider(Configuration conf) {
+  public AwsCredentialsProvider buildAWSCredentialsProvider(Configuration conf) {
 
     checkArgument(conf != null, "conf cannot be null.");
     
@@ -28,8 +27,8 @@ public class SessionCredentialsProviderFactory implements AWSCredentialsProvider
     checkArgument(secretKey != null, AWS_SECRET_KEY_CONF_VAR + " must be set.");
     checkArgument(sessionToken != null, AWS_SESSION_TOKEN_CONF_VAR + " must be set.");
     
-    AWSSessionCredentials credentials = new BasicSessionCredentials(accessKey, secretKey, sessionToken);
+    AwsSessionCredentials credentials = AwsSessionCredentials.create(accessKey, secretKey, sessionToken);
     
-    return new StaticCredentialsProvider(credentials);
+    return StaticCredentialsProvider.create(credentials);
   }
 }

@@ -1,9 +1,9 @@
 package com.amazonaws.glue.catalog.util;
 
-import com.amazonaws.services.glue.model.InvalidInputException;
-import com.amazonaws.services.glue.model.Table;
+import software.amazon.awssdk.services.glue.model.Table;
 
 import org.apache.hadoop.hive.metastore.TableType;
+import org.apache.hadoop.hive.metastore.api.MetaException;
 
 import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.META_TABLE_STORAGE;
@@ -18,22 +18,23 @@ public enum HiveTableValidator {
         return;
       }
 
-      if (table.getTableType() == null) {
+      if (table.tableType() == null) {
         missingProperty = "TableType";
-      } else if (table.getStorageDescriptor() == null) {
+      } else if (table.storageDescriptor() == null) {
         missingProperty = "StorageDescriptor";
-      } else if (table.getStorageDescriptor().getInputFormat() == null) {
+      } else if (table.storageDescriptor().inputFormat() == null) {
         missingProperty = "StorageDescriptor#InputFormat";
-      } else if (table.getStorageDescriptor().getOutputFormat() == null) {
+      } else if (table.storageDescriptor().outputFormat() == null) {
         missingProperty = "StorageDescriptor#OutputFormat";
-      } else if (table.getStorageDescriptor().getSerdeInfo() == null) {
+      } else if (table.storageDescriptor().serdeInfo() == null) {
         missingProperty = "StorageDescriptor#SerdeInfo";
-      } else if (table.getStorageDescriptor().getSerdeInfo().getSerializationLibrary() == null) {
+      } else if (table.storageDescriptor().serdeInfo().serializationLibrary() == null) {
         missingProperty = "StorageDescriptor#SerdeInfo#SerializationLibrary";
       }
 
       if (missingProperty != null) {
-        throw new InvalidInputException(String.format("%s cannot be null for table: %s", missingProperty, table.getName()));
+        throw new RuntimeException(new MetaException(
+            String.format("%s cannot be null for table: %s", missingProperty, table.name())));
       }
     }
   };
@@ -49,17 +50,17 @@ public enum HiveTableValidator {
   }
 
   private static boolean isNotManagedOrExternalTable(Table table) {
-    if (table.getTableType() != null &&
-        TableType.valueOf(table.getTableType()) != TableType.MANAGED_TABLE &&
-        TableType.valueOf(table.getTableType()) != TableType.EXTERNAL_TABLE) {
+    if (table.tableType() != null &&
+        TableType.valueOf(table.tableType()) != TableType.MANAGED_TABLE &&
+        TableType.valueOf(table.tableType()) != TableType.EXTERNAL_TABLE) {
       return true;
     }
     return false;
   }
 
   private static boolean isStorageHandlerType(Table table) {
-    if (table.getParameters() != null && table.getParameters().containsKey(META_TABLE_STORAGE) &&
-        isNotEmpty(table.getParameters().get(META_TABLE_STORAGE))) {
+    if (table.parameters() != null && table.parameters().containsKey(META_TABLE_STORAGE) &&
+        isNotEmpty(table.parameters().get(META_TABLE_STORAGE))) {
       return true;
     }
     return false;

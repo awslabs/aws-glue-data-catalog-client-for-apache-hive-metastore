@@ -2,7 +2,7 @@ package com.amazonaws.glue.catalog.util;
 
 import com.amazonaws.glue.shims.AwsGlueHiveShims;
 import com.amazonaws.glue.shims.ShimsLoader;
-import com.amazonaws.services.glue.model.Table;
+import software.amazon.awssdk.services.glue.model.Table;
 
 import com.google.common.collect.ImmutableList;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;

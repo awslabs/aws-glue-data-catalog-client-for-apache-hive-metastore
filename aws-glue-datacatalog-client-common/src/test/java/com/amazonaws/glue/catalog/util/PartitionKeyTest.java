@@ -1,7 +1,7 @@
 package com.amazonaws.glue.catalog.util;
 
-import com.amazonaws.services.glue.model.Partition;
-import com.amazonaws.services.glue.model.PartitionError;
+import software.amazon.awssdk.services.glue.model.Partition;
+import software.amazon.awssdk.services.glue.model.PartitionError;
 
 import com.google.common.collect.Lists;
 import org.junit.Test;

@@ -1,17 +1,19 @@
 package com.amazonaws.glue.catalog.metastore;
 
-import com.amazonaws.services.glue.model.ColumnStatistics;
-import com.amazonaws.services.glue.model.ColumnStatisticsError;
-import com.amazonaws.services.glue.model.Database;
-import com.amazonaws.services.glue.model.DatabaseInput;
-import com.amazonaws.services.glue.model.Partition;
-import com.amazonaws.services.glue.model.PartitionError;
-import com.amazonaws.services.glue.model.PartitionInput;
-import com.amazonaws.services.glue.model.PartitionValueList;
-import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.glue.model.TableInput;
-import com.amazonaws.services.glue.model.UserDefinedFunction;
-import com.amazonaws.services.glue.model.UserDefinedFunctionInput;
+import software.amazon.awssdk.services.glue.model.Catalog;
+import software.amazon.awssdk.services.glue.model.CatalogInput;
+import software.amazon.awssdk.services.glue.model.ColumnStatistics;
+import software.amazon.awssdk.services.glue.model.ColumnStatisticsError;
+import software.amazon.awssdk.services.glue.model.Database;
+import software.amazon.awssdk.services.glue.model.DatabaseInput;
+import software.amazon.awssdk.services.glue.model.Partition;
+import software.amazon.awssdk.services.glue.model.PartitionError;
+import software.amazon.awssdk.services.glue.model.PartitionInput;
+import software.amazon.awssdk.services.glue.model.PartitionValueList;
+import software.amazon.awssdk.services.glue.model.Table;
+import software.amazon.awssdk.services.glue.model.TableInput;
+import software.amazon.awssdk.services.glue.model.UserDefinedFunction;
+import software.amazon.awssdk.services.glue.model.UserDefinedFunctionInput;
 import org.apache.hadoop.hive.metastore.api.EnvironmentContext;
 import org.apache.thrift.TException;
 
@@ -20,7 +22,7 @@ import java.util.Map;
 
 /**
  * This is the accessor interface for using AWS Glue as a metastore.
- * The generic AWSGlue interface{@link com.amazonaws.services.glue.AWSGlue}
+ * The generic AWSGlue interface{@link software.amazon.awssdk.services.glue.GlueClient}
  * has a number of methods that are irrelevant for clients using Glue only
  * as a metastore.
  * Think of this interface as a wrapper over AWSGlue. This additional layer
@@ -109,4 +111,14 @@ public interface AWSGlueMetastore {
            String tableName,
            List<ColumnStatistics> columnStatistics
    );
+
+   void createCatalog(String catalogName, CatalogInput catalogInput);
+
+   Catalog getCatalog(String catalogName);
+
+   void updateCatalog(String catalogName, CatalogInput catalogInput);
+
+   void deleteCatalog(String catalogName);
+
+   List<String> getCatalogs();
 }

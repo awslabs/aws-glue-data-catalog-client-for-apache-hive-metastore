@@ -1,14 +1,14 @@
 package com.amazonaws.glue.catalog.util;
 
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.BatchDeletePartitionRequest;
-import com.amazonaws.services.glue.model.BatchDeletePartitionResult;
-import com.amazonaws.services.glue.model.EntityNotFoundException;
-import com.amazonaws.services.glue.model.GetPartitionRequest;
-import com.amazonaws.services.glue.model.GetPartitionResult;
-import com.amazonaws.services.glue.model.InternalServiceException;
-import com.amazonaws.services.glue.model.Partition;
-import com.amazonaws.services.glue.model.PartitionError;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.BatchDeletePartitionRequest;
+import software.amazon.awssdk.services.glue.model.BatchDeletePartitionResult;
+import software.amazon.awssdk.services.glue.model.EntityNotFoundException;
+import software.amazon.awssdk.services.glue.model.GetPartitionRequest;
+import software.amazon.awssdk.services.glue.model.GetPartitionResult;
+import software.amazon.awssdk.services.glue.model.InternalServiceException;
+import software.amazon.awssdk.services.glue.model.Partition;
+import software.amazon.awssdk.services.glue.model.PartitionError;
 
 import com.google.common.collect.Lists;
 import org.apache.hadoop.hive.metastore.api.InvalidInputException;
@@ -101,7 +101,7 @@ public class BatchDeletePartitionsHelperTest {
 
   @Test
   public void testDeletePartitionsThrowsInvalidInputException() throws Exception {
-    Exception e = new com.amazonaws.services.glue.model.InvalidInputException("foo");
+    Exception e = new software.amazon.awssdk.services.glue.model.InvalidInputException("foo");
     mockBatchDeleteThrowsException(e);
 
     List<String> values1 = Lists.newArrayList("val1");

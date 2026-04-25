@@ -3,7 +3,7 @@ package com.amazonaws.glue.catalog.metastore;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.BasicSessionCredentials;
-import com.amazonaws.services.glue.AWSGlue;
+import software.amazon.awssdk.services.glue.GlueClient;
 
 import org.apache.hadoop.conf.Configuration;
 import org.hamcrest.Matchers;
