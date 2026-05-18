@@ -1,7 +1,8 @@
 package com.amazonaws.glue.catalog.converters;
 
-import com.amazonaws.services.glue.model.ErrorDetail;
-import com.amazonaws.services.glue.model.ColumnStatistics;
+import software.amazon.awssdk.services.glue.model.ErrorDetail;
+import software.amazon.awssdk.services.glue.model.ColumnStatistics;
+import org.apache.hadoop.hive.metastore.api.Catalog;
 import org.apache.hadoop.hive.metastore.api.ColumnStatisticsObj;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
@@ -19,19 +20,21 @@ public interface CatalogToHiveConverter {
 
   TException errorDetailToHiveException(ErrorDetail errorDetail);
 
-  Database convertDatabase(com.amazonaws.services.glue.model.Database catalogDatabase);
+  Catalog convertCatalog(software.amazon.awssdk.services.glue.model.Catalog glueCatalog);
 
-  List<FieldSchema> convertFieldSchemaList(List<com.amazonaws.services.glue.model.Column> catalogFieldSchemaList);
+  Database convertDatabase(software.amazon.awssdk.services.glue.model.Database catalogDatabase);
 
-  Table convertTable(com.amazonaws.services.glue.model.Table catalogTable, String dbname);
+  List<FieldSchema> convertFieldSchemaList(List<software.amazon.awssdk.services.glue.model.Column> catalogFieldSchemaList);
 
-  TableMeta convertTableMeta(com.amazonaws.services.glue.model.Table catalogTable, String dbName);
+  Table convertTable(software.amazon.awssdk.services.glue.model.Table catalogTable, String dbname);
 
-  Partition convertPartition(com.amazonaws.services.glue.model.Partition src);
+  TableMeta convertTableMeta(software.amazon.awssdk.services.glue.model.Table catalogTable, String dbName);
 
-  List<Partition> convertPartitions(List<com.amazonaws.services.glue.model.Partition> src);
+  Partition convertPartition(software.amazon.awssdk.services.glue.model.Partition src);
 
-  Function convertFunction(String dbName, com.amazonaws.services.glue.model.UserDefinedFunction catalogFunction);
+  List<Partition> convertPartitions(List<software.amazon.awssdk.services.glue.model.Partition> src);
+
+  Function convertFunction(String dbName, software.amazon.awssdk.services.glue.model.UserDefinedFunction catalogFunction);
 
   List<ColumnStatisticsObj> convertColumnStatisticsList(List<ColumnStatistics> catatlogColumnStatisticsList);
 }

@@ -1,11 +1,11 @@
 package com.amazonaws.glue.catalog.metastore;
 
 import com.amazonaws.glue.catalog.util.TestObjects;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.Database;
-import com.amazonaws.services.glue.model.EntityNotFoundException;
-import com.amazonaws.services.glue.model.GetUserDefinedFunctionRequest;
-import com.amazonaws.services.glue.model.UserDefinedFunction;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.Database;
+import software.amazon.awssdk.services.glue.model.EntityNotFoundException;
+import software.amazon.awssdk.services.glue.model.GetUserDefinedFunctionRequest;
+import software.amazon.awssdk.services.glue.model.UserDefinedFunction;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.Warehouse;

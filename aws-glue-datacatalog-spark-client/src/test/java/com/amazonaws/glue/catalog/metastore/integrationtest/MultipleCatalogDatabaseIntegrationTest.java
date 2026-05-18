@@ -2,9 +2,9 @@ package com.amazonaws.glue.catalog.metastore.integrationtest;
 
 import com.amazonaws.glue.catalog.converters.BaseCatalogToHiveConverter;
 import com.amazonaws.glue.catalog.converters.CatalogToHiveConverter;
-import com.amazonaws.services.glue.model.DeleteDatabaseRequest;
-import com.amazonaws.services.glue.model.EntityNotFoundException;
-import com.amazonaws.services.glue.model.GetDatabaseRequest;
+import software.amazon.awssdk.services.glue.model.DeleteDatabaseRequest;
+import software.amazon.awssdk.services.glue.model.EntityNotFoundException;
+import software.amazon.awssdk.services.glue.model.GetDatabaseRequest;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.thrift.TException;

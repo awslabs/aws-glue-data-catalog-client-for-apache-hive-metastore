@@ -1,6 +1,6 @@
 package com.amazonaws.glue.catalog.metastore;
 
-import com.amazonaws.services.glue.AWSGlue;
+import software.amazon.awssdk.services.glue.GlueClient;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 
@@ -10,7 +10,7 @@ import static com.amazonaws.glue.catalog.util.AWSGlueConfig.AWS_GLUE_TABLE_CACHE
 public class AWSGlueMetastoreFactory {
 
     public AWSGlueMetastore newMetastore(Configuration conf) throws MetaException {
-        AWSGlue glueClient = new AWSGlueClientFactory(conf).newClient();
+        GlueClient glueClient = new AWSGlueClientFactory(conf).newClient();
         AWSGlueMetastore defaultMetastore = new DefaultAWSGlueMetastore(conf, glueClient);
         if(isCacheEnabled(conf)) {
             return new AWSGlueMetastoreCacheDecorator(conf, defaultMetastore);

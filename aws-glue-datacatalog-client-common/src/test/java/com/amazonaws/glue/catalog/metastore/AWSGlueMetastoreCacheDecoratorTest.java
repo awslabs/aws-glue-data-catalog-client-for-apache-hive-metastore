@@ -1,7 +1,7 @@
 package com.amazonaws.glue.catalog.metastore;
 
-import com.amazonaws.services.glue.model.Database;
-import com.amazonaws.services.glue.model.Table;
+import software.amazon.awssdk.services.glue.model.Database;
+import software.amazon.awssdk.services.glue.model.Table;
 import com.google.common.cache.Cache;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.Before;

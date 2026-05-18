@@ -1,10 +1,10 @@
 package com.amazonaws.glue.catalog.converters;
 
 import com.amazonaws.glue.catalog.util.TestObjects;
-import com.amazonaws.services.glue.model.Database;
-import com.amazonaws.services.glue.model.Partition;
-import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.glue.model.UserDefinedFunction;
+import software.amazon.awssdk.services.glue.model.Database;
+import software.amazon.awssdk.services.glue.model.Partition;
+import software.amazon.awssdk.services.glue.model.Table;
+import software.amazon.awssdk.services.glue.model.UserDefinedFunction;
 import com.google.common.collect.ImmutableList;
 import org.apache.hadoop.hive.metastore.api.TableMeta;
 import org.junit.Test;

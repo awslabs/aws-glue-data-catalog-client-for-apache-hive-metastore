@@ -4,9 +4,9 @@ import com.amazonaws.glue.catalog.metastore.AWSGlueMetastore;
 import com.amazonaws.glue.catalog.converters.CatalogToHiveConverter;
 import com.amazonaws.glue.catalog.converters.CatalogToHiveConverterFactory;
 import com.amazonaws.glue.catalog.converters.GlueInputConverter;
-import com.amazonaws.services.glue.model.EntityNotFoundException;
-import com.amazonaws.services.glue.model.Partition;
-import com.amazonaws.services.glue.model.PartitionError;
+import software.amazon.awssdk.services.glue.model.EntityNotFoundException;
+import software.amazon.awssdk.services.glue.model.Partition;
+import software.amazon.awssdk.services.glue.model.PartitionError;
 import com.google.common.collect.Lists;
 
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
@@ -81,9 +81,9 @@ public final class BatchCreatePartitionsHelper {
             partitionErrors.size(), partitionMap.size()));
 
     for (PartitionError partitionError : partitionErrors) {
-      Partition partitionFailed = partitionMap.remove(new PartitionKey(partitionError.getPartitionValues()));
+      Partition partitionFailed = partitionMap.remove(new PartitionKey(partitionError.partitionValues()));
 
-      TException exception = catalogToHiveConverter.errorDetailToHiveException(partitionError.getErrorDetail());
+      TException exception = catalogToHiveConverter.errorDetailToHiveException(partitionError.errorDetail());
       if (ifNotExists && exception instanceof AlreadyExistsException) {
         // AlreadyExistsException is allowed, so we shouldn't add the partition to partitionsFailed list
         continue;
@@ -107,13 +107,13 @@ public final class BatchCreatePartitionsHelper {
 
   private boolean partitionExists(Partition partition) {
     try {
-      Partition partitionReturned = glueClient.getPartition(databaseName, tableName, partition.getValues());
+      Partition partitionReturned = glueClient.getPartition(databaseName, tableName, partition.values());
       return partitionReturned != null; //probably always true here
     } catch (EntityNotFoundException e) {
       // here we assume namespace and table exist. It is assured by calling "isInvalidUserInputException" method above
       return false;
     } catch (Exception e) {
-      logger.error(String.format("Get partition request %s failed. ", StringUtils.join(partition.getValues(), "/")), e);
+      logger.error(String.format("Get partition request %s failed. ", StringUtils.join(partition.values(), "/")), e);
       // partition status unknown, we assume that the partition was not created
       return false;
     }

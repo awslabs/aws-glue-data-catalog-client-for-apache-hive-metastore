@@ -4,7 +4,7 @@ import com.amazonaws.glue.catalog.metastore.AWSCatalogMetastoreClient;
 import com.amazonaws.glue.catalog.metastore.AWSGlueClientFactory;
 import com.amazonaws.glue.catalog.metastore.GlueClientFactory;
 import com.amazonaws.glue.catalog.util.AWSGlueConfig;
-import com.amazonaws.services.glue.AWSGlue;
+import software.amazon.awssdk.services.glue.GlueClient;
 import com.google.common.base.Strings;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;

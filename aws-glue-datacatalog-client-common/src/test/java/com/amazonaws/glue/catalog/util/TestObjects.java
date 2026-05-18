@@ -1,20 +1,20 @@
 package com.amazonaws.glue.catalog.util;
 
-import com.amazonaws.services.glue.model.Database;
-import com.amazonaws.services.glue.model.ErrorDetail;
-import com.amazonaws.services.glue.model.PartitionError;
-import com.amazonaws.services.glue.model.UserDefinedFunction;
+import software.amazon.awssdk.services.glue.model.Database;
+import software.amazon.awssdk.services.glue.model.ErrorDetail;
+import software.amazon.awssdk.services.glue.model.PartitionError;
+import software.amazon.awssdk.services.glue.model.UserDefinedFunction;
 import com.amazonaws.glue.catalog.converters.HiveToCatalogConverter;
-import com.amazonaws.services.glue.model.Column;
-import com.amazonaws.services.glue.model.Order;
-import com.amazonaws.services.glue.model.Partition;
-import com.amazonaws.services.glue.model.PrincipalType;
-import com.amazonaws.services.glue.model.ResourceType;
-import com.amazonaws.services.glue.model.ResourceUri;
-import com.amazonaws.services.glue.model.SerDeInfo;
-import com.amazonaws.services.glue.model.SkewedInfo;
-import com.amazonaws.services.glue.model.StorageDescriptor;
-import com.amazonaws.services.glue.model.Table;
+import software.amazon.awssdk.services.glue.model.Column;
+import software.amazon.awssdk.services.glue.model.Order;
+import software.amazon.awssdk.services.glue.model.Partition;
+import software.amazon.awssdk.services.glue.model.PrincipalType;
+import software.amazon.awssdk.services.glue.model.ResourceType;
+import software.amazon.awssdk.services.glue.model.ResourceUri;
+import software.amazon.awssdk.services.glue.model.SerDeInfo;
+import software.amazon.awssdk.services.glue.model.SkewedInfo;
+import software.amazon.awssdk.services.glue.model.StorageDescriptor;
+import software.amazon.awssdk.services.glue.model.Table;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;

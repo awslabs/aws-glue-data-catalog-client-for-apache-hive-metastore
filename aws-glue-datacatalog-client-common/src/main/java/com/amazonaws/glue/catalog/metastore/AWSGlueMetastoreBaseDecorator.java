@@ -1,17 +1,19 @@
 package com.amazonaws.glue.catalog.metastore;
 
-import com.amazonaws.services.glue.model.ColumnStatistics;
-import com.amazonaws.services.glue.model.ColumnStatisticsError;
-import com.amazonaws.services.glue.model.Database;
-import com.amazonaws.services.glue.model.DatabaseInput;
-import com.amazonaws.services.glue.model.Partition;
-import com.amazonaws.services.glue.model.PartitionError;
-import com.amazonaws.services.glue.model.PartitionInput;
-import com.amazonaws.services.glue.model.PartitionValueList;
-import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.glue.model.TableInput;
-import com.amazonaws.services.glue.model.UserDefinedFunction;
-import com.amazonaws.services.glue.model.UserDefinedFunctionInput;
+import software.amazon.awssdk.services.glue.model.Catalog;
+import software.amazon.awssdk.services.glue.model.CatalogInput;
+import software.amazon.awssdk.services.glue.model.ColumnStatistics;
+import software.amazon.awssdk.services.glue.model.ColumnStatisticsError;
+import software.amazon.awssdk.services.glue.model.Database;
+import software.amazon.awssdk.services.glue.model.DatabaseInput;
+import software.amazon.awssdk.services.glue.model.Partition;
+import software.amazon.awssdk.services.glue.model.PartitionError;
+import software.amazon.awssdk.services.glue.model.PartitionInput;
+import software.amazon.awssdk.services.glue.model.PartitionValueList;
+import software.amazon.awssdk.services.glue.model.Table;
+import software.amazon.awssdk.services.glue.model.TableInput;
+import software.amazon.awssdk.services.glue.model.UserDefinedFunction;
+import software.amazon.awssdk.services.glue.model.UserDefinedFunctionInput;
 import org.apache.hadoop.hive.metastore.api.EnvironmentContext;
 import org.apache.thrift.TException;
 
@@ -172,6 +174,31 @@ public class AWSGlueMetastoreBaseDecorator implements AWSGlueMetastore {
     @Override
     public List<ColumnStatisticsError> updateTableColumnStatistics(String dbName, String tableName, List<ColumnStatistics> columnStatistics) {
         return awsGlueMetastore.updateTableColumnStatistics(dbName, tableName, columnStatistics);
+    }
+
+    @Override
+    public void createCatalog(String catalogName, CatalogInput catalogInput) {
+        awsGlueMetastore.createCatalog(catalogName, catalogInput);
+    }
+
+    @Override
+    public Catalog getCatalog(String catalogName) {
+        return awsGlueMetastore.getCatalog(catalogName);
+    }
+
+    @Override
+    public void updateCatalog(String catalogName, CatalogInput catalogInput) {
+        awsGlueMetastore.updateCatalog(catalogName, catalogInput);
+    }
+
+    @Override
+    public void deleteCatalog(String catalogName) {
+        awsGlueMetastore.deleteCatalog(catalogName);
+    }
+
+    @Override
+    public List<String> getCatalogs() {
+        return awsGlueMetastore.getCatalogs();
     }
 
 }

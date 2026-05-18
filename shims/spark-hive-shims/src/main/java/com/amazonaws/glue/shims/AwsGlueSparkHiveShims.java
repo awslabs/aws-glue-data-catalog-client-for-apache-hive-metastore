@@ -2,7 +2,7 @@ package com.amazonaws.glue.shims;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.metastore.MetaStoreUtils;
+import org.apache.hadoop.hive.metastore.utils.MetaStoreUtils;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.EnvironmentContext;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
@@ -17,7 +17,8 @@ import java.util.List;
 
 class AwsGlueSparkHiveShims implements AwsGlueHiveShims {
 
-  private static final String SPARK_HIVE_VERSION = "2.3.";
+  // Changed from "2.3." to "3." for Hive 3 compatibility
+  private static final String SPARK_HIVE_VERSION = "3.";
 
   static boolean supportsVersion(String version) {
     return version.startsWith(SPARK_HIVE_VERSION);
@@ -35,17 +36,20 @@ class AwsGlueSparkHiveShims implements AwsGlueHiveShims {
 
   @Override
   public Path getDefaultTablePath(Database db, String tableName, Warehouse warehouse) throws MetaException {
-    return warehouse.getDefaultTablePath(db, tableName);
+    // Hive 3: added boolean parameter
+    return warehouse.getDefaultTablePath(db, tableName, false);
   }
 
   @Override
   public boolean deleteDir(Warehouse wh, Path path, boolean recursive, boolean ifPurge) throws MetaException {
-    return wh.deleteDir(path, recursive, ifPurge);
+    // Hive 3: added 4th boolean parameter
+    return wh.deleteDir(path, recursive, ifPurge, true);
   }
 
   @Override
   public boolean mkdirs(Warehouse wh, Path path) throws MetaException {
-    return wh.mkdirs(path, true);
+    // Hive 3: single-arg mkdirs
+    return wh.mkdirs(path);
   }
 
   @Override
@@ -60,7 +64,8 @@ class AwsGlueSparkHiveShims implements AwsGlueHiveShims {
       Partition newPart,
       Table tbl,
       EnvironmentContext environmentContext) {
-    return MetaStoreUtils.requireCalStats(conf, oldPart, newPart, tbl, environmentContext);
+    // Hive 3: first param changed from conf to oldPart
+    return MetaStoreUtils.requireCalStats(oldPart, newPart, tbl, environmentContext);
   }
 
   @Override
@@ -72,7 +77,9 @@ class AwsGlueSparkHiveShims implements AwsGlueHiveShims {
       boolean forceRecompute,
       EnvironmentContext environmentContext
   ) throws MetaException {
-    return MetaStoreUtils.updateTableStatsFast(db, tbl, wh, madeDir, forceRecompute, environmentContext);
+    // Hive 3: renamed from updateTableStatsFast to updateTableStatsSlow, returns void
+    MetaStoreUtils.updateTableStatsSlow(db, tbl, wh, madeDir, forceRecompute, environmentContext);
+    return true;
   }
 
   @Override

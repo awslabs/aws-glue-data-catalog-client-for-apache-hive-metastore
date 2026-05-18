@@ -1,7 +1,7 @@
 package com.amazonaws.glue.catalog.util;
 
 import com.amazonaws.AmazonClientException;
-import com.amazonaws.AmazonServiceException;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
@@ -10,8 +10,8 @@ import com.amazonaws.glue.catalog.metastore.AWSGlueMultipleCatalogDecorator;
 import com.amazonaws.glue.catalog.metastore.GlueClientFactory;
 import com.amazonaws.retry.PredefinedRetryPolicies;
 import com.amazonaws.retry.RetryPolicy;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.AWSGlueClientBuilder;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.GlueClient;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hive.metastore.api.MetaException;
@@ -45,8 +45,8 @@ public final class GlueTestClientFactory implements GlueClientFactory {
         if (super.shouldRetry(originalRequest, exception, retriesAttempted)) {
           return true;
         }
-        if (exception != null && exception instanceof AmazonServiceException) {
-          AmazonServiceException ase = (AmazonServiceException) exception;
+        if (exception != null && exception instanceof AwsServiceException) {
+          AwsServiceException ase = (AwsServiceException) exception;
           if (ase.getStatusCode() == SC_GATEWAY_TIMEOUT) {
             return true;
           }

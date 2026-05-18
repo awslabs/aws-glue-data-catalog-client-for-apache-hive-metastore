@@ -1,10 +1,12 @@
 package com.amazonaws.glue.catalog.converters;
 
-import com.amazonaws.services.glue.model.DatabaseInput;
-import com.amazonaws.services.glue.model.PartitionInput;
-import com.amazonaws.services.glue.model.TableInput;
-import com.amazonaws.services.glue.model.UserDefinedFunctionInput;
+import software.amazon.awssdk.services.glue.model.CatalogInput;
+import software.amazon.awssdk.services.glue.model.DatabaseInput;
+import software.amazon.awssdk.services.glue.model.PartitionInput;
+import software.amazon.awssdk.services.glue.model.TableInput;
+import software.amazon.awssdk.services.glue.model.UserDefinedFunctionInput;
 
+import org.apache.hadoop.hive.metastore.api.Catalog;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.Function;
 import org.apache.hadoop.hive.metastore.api.Partition;
@@ -20,77 +22,75 @@ import java.util.List;
  */
 public final class GlueInputConverter {
 
+  public static CatalogInput convertToCatalogInput(Catalog hiveCatalog) {
+    return CatalogInput.builder()
+        .description(hiveCatalog.getDescription())
+        .build();
+  }
+
   public static DatabaseInput convertToDatabaseInput(Database hiveDatabase) {
     return convertToDatabaseInput(HiveToCatalogConverter.convertDatabase(hiveDatabase));
   }
 
-  public static DatabaseInput convertToDatabaseInput(com.amazonaws.services.glue.model.Database database) {
-    DatabaseInput input = new DatabaseInput();
-
-    input.setName(database.getName());
-    input.setDescription(database.getDescription());
-    input.setLocationUri(database.getLocationUri());
-    input.setParameters(database.getParameters());
-
-    return input;
+  public static DatabaseInput convertToDatabaseInput(software.amazon.awssdk.services.glue.model.Database database) {
+    return DatabaseInput.builder()
+        .name(database.name())
+        .description(database.description())
+        .locationUri(database.locationUri())
+        .parameters(database.parameters())
+        .build();
   }
 
   public static TableInput convertToTableInput(Table hiveTable) {
     return convertToTableInput(HiveToCatalogConverter.convertTable(hiveTable));
   }
 
-  public static TableInput convertToTableInput(com.amazonaws.services.glue.model.Table table) {
-    TableInput tableInput = new TableInput();
-
-    tableInput.setRetention(table.getRetention());
-    tableInput.setPartitionKeys(table.getPartitionKeys());
-    tableInput.setTableType(table.getTableType());
-    tableInput.setName(table.getName());
-    tableInput.setOwner(table.getOwner());
-    tableInput.setLastAccessTime(table.getLastAccessTime());
-    tableInput.setStorageDescriptor(table.getStorageDescriptor());
-    tableInput.setParameters(table.getParameters());
-    tableInput.setViewExpandedText(table.getViewExpandedText());
-    tableInput.setViewOriginalText(table.getViewOriginalText());
-
-    return tableInput;
+  public static TableInput convertToTableInput(software.amazon.awssdk.services.glue.model.Table table) {
+    return TableInput.builder()
+        .retention(table.retention())
+        .partitionKeys(table.partitionKeys())
+        .tableType(table.tableType())
+        .name(table.name())
+        .owner(table.owner())
+        .lastAccessTime(table.lastAccessTime())
+        .storageDescriptor(table.storageDescriptor())
+        .parameters(table.parameters())
+        .viewExpandedText(table.viewExpandedText())
+        .viewOriginalText(table.viewOriginalText())
+        .build();
   }
 
   public static PartitionInput convertToPartitionInput(Partition src) {
     return convertToPartitionInput(HiveToCatalogConverter.convertPartition(src));
   }
 
-  public static PartitionInput convertToPartitionInput(com.amazonaws.services.glue.model.Partition src) {
-    PartitionInput partitionInput = new PartitionInput();
-
-    partitionInput.setLastAccessTime(src.getLastAccessTime());
-    partitionInput.setParameters(src.getParameters());
-    partitionInput.setStorageDescriptor(src.getStorageDescriptor());
-    partitionInput.setValues(src.getValues());
-
-    return partitionInput;
+  public static PartitionInput convertToPartitionInput(software.amazon.awssdk.services.glue.model.Partition src) {
+    return PartitionInput.builder()
+        .lastAccessTime(src.lastAccessTime())
+        .parameters(src.parameters())
+        .storageDescriptor(src.storageDescriptor())
+        .values(src.values())
+        .build();
   }
 
-  public static List<PartitionInput> convertToPartitionInputs(Collection<com.amazonaws.services.glue.model.Partition> parts) {
+  public static List<PartitionInput> convertToPartitionInputs(Collection<software.amazon.awssdk.services.glue.model.Partition> parts) {
     List<PartitionInput> inputList = new ArrayList<>();
-
-    for (com.amazonaws.services.glue.model.Partition part : parts) {
+    for (software.amazon.awssdk.services.glue.model.Partition part : parts) {
       inputList.add(convertToPartitionInput(part));
     }
     return inputList;
   }
 
   public static UserDefinedFunctionInput convertToUserDefinedFunctionInput(Function hiveFunction) {
-    UserDefinedFunctionInput functionInput = new UserDefinedFunctionInput();
-
-    functionInput.setClassName(hiveFunction.getClassName());
-    functionInput.setFunctionName(hiveFunction.getFunctionName());
-    functionInput.setOwnerName(hiveFunction.getOwnerName());
+    UserDefinedFunctionInput.Builder builder = UserDefinedFunctionInput.builder()
+        .className(hiveFunction.getClassName())
+        .functionName(hiveFunction.getFunctionName())
+        .ownerName(hiveFunction.getOwnerName())
+        .resourceUris(HiveToCatalogConverter.covertResourceUriList(hiveFunction.getResourceUris()));
     if(hiveFunction.getOwnerType() != null) {
-      functionInput.setOwnerType(hiveFunction.getOwnerType().name());
+      builder.ownerType(hiveFunction.getOwnerType().name());
     }
-    functionInput.setResourceUris(HiveToCatalogConverter.covertResourceUriList(hiveFunction.getResourceUris()));
-    return functionInput;
+    return builder.build();
   }
 
 }

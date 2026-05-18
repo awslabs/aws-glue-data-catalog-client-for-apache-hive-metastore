@@ -1,7 +1,7 @@
 package com.amazonaws.glue.catalog.util;
 
-import com.amazonaws.services.glue.model.InvalidInputException;
-import com.amazonaws.services.glue.model.Table;
+import software.amazon.awssdk.services.glue.model.InvalidInputException;
+import software.amazon.awssdk.services.glue.model.Table;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;

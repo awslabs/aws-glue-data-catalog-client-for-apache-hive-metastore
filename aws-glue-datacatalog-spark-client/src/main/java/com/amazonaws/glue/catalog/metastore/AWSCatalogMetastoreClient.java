@@ -1,6 +1,6 @@
 package com.amazonaws.glue.catalog.metastore;
 
-import com.amazonaws.AmazonServiceException;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import com.amazonaws.glue.catalog.converters.BaseCatalogToHiveConverter;
 import com.amazonaws.glue.catalog.converters.CatalogToHiveConverter;
 import com.amazonaws.glue.catalog.util.BatchDeletePartitionsHelper;
@@ -9,11 +9,11 @@ import com.amazonaws.glue.catalog.util.LoggingHelper;
 import com.amazonaws.glue.catalog.util.MetastoreClientUtils;
 import com.amazonaws.glue.shims.AwsGlueHiveShims;
 import com.amazonaws.glue.shims.ShimsLoader;
-import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.AlreadyExistsException;
-import com.amazonaws.services.glue.model.EntityNotFoundException;
-import com.amazonaws.services.glue.model.GetDatabaseRequest;
-import com.amazonaws.services.glue.model.Partition;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.AlreadyExistsException;
+import software.amazon.awssdk.services.glue.model.EntityNotFoundException;
+import software.amazon.awssdk.services.glue.model.GetDatabaseRequest;
+import software.amazon.awssdk.services.glue.model.Partition;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -22,70 +22,23 @@ import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.FileUtils;
-import org.apache.hadoop.hive.common.ObjectPair;
+import org.apache.hadoop.hive.metastore.utils.ObjectPair;
 import org.apache.hadoop.hive.common.StatsSetupConst;
 import org.apache.hadoop.hive.common.ValidTxnList;
+import org.apache.hadoop.hive.common.ValidWriteIdList;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.apache.hadoop.hive.metastore.HiveMetaHookLoader;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
-import org.apache.hadoop.hive.metastore.MetaStoreUtils;
+import org.apache.hadoop.hive.metastore.utils.MetaStoreUtils;
 import org.apache.hadoop.hive.metastore.PartitionDropOptions;
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.Warehouse;
-import org.apache.hadoop.hive.metastore.api.AggrStats;
-import org.apache.hadoop.hive.metastore.api.ColumnStatisticsObj;
-import org.apache.hadoop.hive.metastore.api.CompactionType;
-import org.apache.hadoop.hive.metastore.api.ConfigValSecurityException;
-import org.apache.hadoop.hive.metastore.api.CurrentNotificationEventId;
-import org.apache.hadoop.hive.metastore.api.DataOperationType;
-import org.apache.hadoop.hive.metastore.api.Database;
-import org.apache.hadoop.hive.metastore.api.EnvironmentContext;
-import org.apache.hadoop.hive.metastore.api.FieldSchema;
-import org.apache.hadoop.hive.metastore.api.FireEventRequest;
-import org.apache.hadoop.hive.metastore.api.FireEventResponse;
-import org.apache.hadoop.hive.metastore.api.ForeignKeysRequest;
-import org.apache.hadoop.hive.metastore.api.GetAllFunctionsResponse;
-import org.apache.hadoop.hive.metastore.api.GetOpenTxnsInfoResponse;
-import org.apache.hadoop.hive.metastore.api.GetRoleGrantsForPrincipalRequest;
-import org.apache.hadoop.hive.metastore.api.GetRoleGrantsForPrincipalResponse;
-import org.apache.hadoop.hive.metastore.api.HeartbeatTxnRangeResponse;
-import org.apache.hadoop.hive.metastore.api.HiveObjectPrivilege;
-import org.apache.hadoop.hive.metastore.api.HiveObjectRef;
-import org.apache.hadoop.hive.metastore.api.HiveObjectType;
-import org.apache.hadoop.hive.metastore.api.Index;
-import org.apache.hadoop.hive.metastore.api.InvalidObjectException;
-import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
-import org.apache.hadoop.hive.metastore.api.InvalidPartitionException;
-import org.apache.hadoop.hive.metastore.api.LockRequest;
-import org.apache.hadoop.hive.metastore.api.LockResponse;
-import org.apache.hadoop.hive.metastore.api.MetaException;
-import org.apache.hadoop.hive.metastore.api.MetadataPpdResult;
-import org.apache.hadoop.hive.metastore.api.NoSuchLockException;
-import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
-import org.apache.hadoop.hive.metastore.api.NoSuchTxnException;
-import org.apache.hadoop.hive.metastore.api.NotificationEventResponse;
-import org.apache.hadoop.hive.metastore.api.OpenTxnsResponse;
-import org.apache.hadoop.hive.metastore.api.PartitionEventType;
-import org.apache.hadoop.hive.metastore.api.PartitionValuesRequest;
-import org.apache.hadoop.hive.metastore.api.PartitionValuesResponse;
-import org.apache.hadoop.hive.metastore.api.PrimaryKeysRequest;
-import org.apache.hadoop.hive.metastore.api.SQLForeignKey;
-import org.apache.hadoop.hive.metastore.api.SQLPrimaryKey;
-import org.apache.hadoop.hive.metastore.api.ShowCompactResponse;
-import org.apache.hadoop.hive.metastore.api.ShowLocksRequest;
-import org.apache.hadoop.hive.metastore.api.ShowLocksResponse;
-import org.apache.hadoop.hive.metastore.api.TableMeta;
-import org.apache.hadoop.hive.metastore.api.TxnAbortedException;
-import org.apache.hadoop.hive.metastore.api.TxnOpenException;
-import org.apache.hadoop.hive.metastore.api.UnknownDBException;
-import org.apache.hadoop.hive.metastore.api.UnknownPartitionException;
-import org.apache.hadoop.hive.metastore.api.UnknownTableException;
-import org.apache.hadoop.hive.metastore.api.hive_metastoreConstants;
-import org.apache.hadoop.hive.metastore.api.CompactionResponse;
+import org.apache.hadoop.hive.metastore.api.*;
 import org.apache.hadoop.hive.metastore.partition.spec.PartitionSpecProxy;
 import org.apache.log4j.Logger;
 import org.apache.thrift.TException;
@@ -105,8 +58,8 @@ import java.util.regex.Pattern;
 
 import static com.amazonaws.glue.catalog.util.MetastoreClientUtils.isExternalTable;
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.hadoop.hive.metastore.MetaStoreUtils.DEFAULT_DATABASE_COMMENT;
-import static org.apache.hadoop.hive.metastore.MetaStoreUtils.DEFAULT_DATABASE_NAME;
+
+
 
 public class AWSCatalogMetastoreClient implements IMetaStoreClient {
 
@@ -114,7 +67,7 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
   private static final Logger logger = Logger.getLogger(AWSCatalogMetastoreClient.class);
 
   private final HiveConf conf;
-  private final AWSGlue glueClient;
+  private final GlueClient glueClient;
   private final Warehouse wh;
   private final GlueMetastoreClientDelegate glueMetastoreClientDelegate;
   private final String catalogId;
@@ -227,12 +180,6 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
     AWSGlueMetastore glueMetastore = metastoreFactory.newMetastore(conf);
     glueMetastoreClientDelegate = new GlueMetastoreClientDelegate(this.conf, glueMetastore, wh);
 
-    /**
-     * It seems weird to create databases as part of glueClient construction. This
-     * part should probably be moved to the section in hive code right after the
-     * metastore glueClient is instantiated. For now, simply copying the
-     * functionality in the thrift server
-     */
     if(builder.createDefaults && !doesDefaultDBExist()) {
       createDefaultDatabase();
     }
@@ -240,11 +187,11 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
 
   private boolean doesDefaultDBExist() throws MetaException {
     try {
-      GetDatabaseRequest getDatabaseRequest = new GetDatabaseRequest().withName(DEFAULT_DATABASE_NAME).withCatalogId(catalogId);
+      GetDatabaseRequest getDatabaseRequest = GetDatabaseRequest.builder().name("default").catalogId(catalogId).build();
       glueClient.getDatabase(getDatabaseRequest);
     } catch (EntityNotFoundException e) {
       return false;
-    } catch (AmazonServiceException e) {
+    } catch (AwsServiceException e) {
       String msg = "Unable to verify existence of default database: ";
       logger.error(msg, e);
       throw new MetaException(msg + e);
@@ -253,10 +200,10 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
   }
 
   private void createDefaultDatabase() throws MetaException {
-      Database defaultDB = new Database();
-      defaultDB.setName(DEFAULT_DATABASE_NAME);
-      defaultDB.setDescription(DEFAULT_DATABASE_COMMENT);
-      defaultDB.setLocationUri(wh.getDefaultDatabasePath(DEFAULT_DATABASE_NAME).toString());
+      org.apache.hadoop.hive.metastore.api.Database defaultDB = new org.apache.hadoop.hive.metastore.api.Database();
+      defaultDB.setName("default");
+      defaultDB.setDescription("Default Hive database");
+      defaultDB.setLocationUri(wh.getDefaultDatabasePath("default").toString());
 
       org.apache.hadoop.hive.metastore.api.PrincipalPrivilegeSet principalPrivilegeSet
             = new org.apache.hadoop.hive.metastore.api.PrincipalPrivilegeSet();
@@ -264,9 +211,6 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
 
       defaultDB.setPrivileges(principalPrivilegeSet);
 
-      /**
-       * TODO: Grant access to role PUBLIC after role support is added
-       */
       try {
           createDatabase(defaultDB);
       } catch (org.apache.hadoop.hive.metastore.api.AlreadyExistsException e) {
@@ -357,12 +301,6 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
   public void alterFunction(String dbName, String functionName, org.apache.hadoop.hive.metastore.api.Function newFunction) throws InvalidObjectException,
         MetaException, TException {
     glueMetastoreClientDelegate.alterFunction(dbName, functionName, newFunction);      
-  }
-
-  @Override
-  public void alter_index(String dbName, String tblName, String indexName, Index index) throws InvalidOperationException,
-        MetaException, TException {
-    throw new UnsupportedOperationException("alter_index is not supported");
   }
 
   @Override
@@ -603,12 +541,6 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
   }
 
   @Override
-  public void createIndex(Index index, org.apache.hadoop.hive.metastore.api.Table indexTable) throws InvalidObjectException, MetaException, NoSuchObjectException,
-        TException, org.apache.hadoop.hive.metastore.api.AlreadyExistsException {
-    throw new UnsupportedOperationException("createIndex is not supported");
-  }
-
-  @Override
   public void createTable(org.apache.hadoop.hive.metastore.api.Table tbl) throws org.apache.hadoop.hive.metastore.api.AlreadyExistsException, InvalidObjectException, MetaException,
         NoSuchObjectException, TException {
     glueMetastoreClientDelegate.createTable(tbl);
@@ -636,15 +568,9 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
     glueMetastoreClientDelegate.dropFunction(dbName, functionName);
   }
 
-  @Override
-  public boolean dropIndex(String dbName, String tblName, String name, boolean deleteData) throws NoSuchObjectException,
-        MetaException, TException {
-    throw new UnsupportedOperationException("dropIndex is not supported");
-  }
-
   private void deleteParentRecursive(Path parent, int depth, boolean mustPurge) throws IOException, MetaException {
       if (depth > 0 && parent != null && wh.isWritable(parent) && wh.isEmpty(parent)) {
-          wh.deleteDir(parent, true, mustPurge);
+          wh.deleteDir(parent, true, mustPurge, true);
           deleteParentRecursive(parent.getParent(), depth - 1, mustPurge);
       }
   }
@@ -718,15 +644,6 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
     return deleted;
   }
 
-  /**
-   * Delete all partitions in the list provided with BatchDeletePartitions request. It doesn't use transaction,
-   * so the call may result in partial failure.
-   * @param dbName
-   * @param tableName
-   * @param partitionsToDelete
-   * @return the partitions successfully deleted
-   * @throws TException
-   */
   private List<org.apache.hadoop.hive.metastore.api.Partition> batchDeletePartitions(
         final String dbName, final String tableName, final List<Partition> partitionsToDelete,
         final boolean deleteData, final boolean purgeData) throws TException {
@@ -786,9 +703,9 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
       Preconditions.checkArgument(dbName != null, "Database name cannot be null");
       Preconditions.checkArgument(tableName != null, "Table name cannot be null");
       for (Partition partition : partitionsToDelete) {
-          Preconditions.checkArgument(dbName.equals(partition.getDatabaseName()), "Database name cannot be null");
-          Preconditions.checkArgument(tableName.equals(partition.getTableName()), "Table name cannot be null");
-          Preconditions.checkArgument(partition.getValues() != null, "Partition values cannot be null");
+          Preconditions.checkArgument(dbName.equals(partition.databaseName()), "Database name cannot be null");
+          Preconditions.checkArgument(tableName.equals(partition.tableName()), "Table name cannot be null");
+          Preconditions.checkArgument(partition.values() != null, "Partition values cannot be null");
       }
   }
 
@@ -804,7 +721,7 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
               return;
           }
           boolean mustPurge = isMustPurge(table, ifPurge);
-          wh.deleteDir(partPath, true, mustPurge);
+          wh.deleteDir(partPath, true, mustPurge, true);
           try {
               List<String> values = partition.getValues();
               deleteParentRecursive(partPath.getParent(), values.size() - 1, mustPurge);
@@ -812,12 +729,6 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
               throw new MetaException(e.getMessage());
           }
       }
-  }
-
-  @Deprecated
-  public void dropTable(String tableName, boolean deleteData) throws MetaException, UnknownTableException, TException,
-        NoSuchObjectException {
-      dropTable(DEFAULT_DATABASE_NAME, tableName, deleteData, false);
   }
 
   @Override
@@ -895,12 +806,8 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
     try {
       return glueMetastoreClientDelegate.getFunction(dbName, functionName);
     } catch (NoSuchObjectException e) {
-      // We have to set specific error message string:
-      // "$functionName does not exist" for
-      // NoSuchObjectExceptions to conform to how spark handle exception
-      // matching for doesFunctionExist operation.
       throw new NoSuchObjectException(functionName + " does not exist");
-    } catch (AmazonServiceException e) {
+    } catch (AwsServiceException e) {
       logger.error(e);
       throw catalogToHiveConverter.wrapInHiveException(e);
     } catch (Exception e) {
@@ -912,7 +819,6 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
 
   @Override
   public List<String> getFunctions(String dbName, String pattern) throws MetaException, TException {
-    // Spark uses "*" instead of ".*" pattern which is not accepted server side
     if (pattern.equals("*")) {
       pattern = ".*";
     }
@@ -923,12 +829,6 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
   @Override
   public GetAllFunctionsResponse getAllFunctions() throws MetaException, TException {
     return glueMetastoreClientDelegate.getAllFunctions();
-  }
-
-  @Override
-  public Index getIndex(String dbName, String tblName, String indexName) throws MetaException, UnknownTableException,
-        NoSuchObjectException, TException {
-    throw new UnsupportedOperationException("getIndex is not supported");
   }
 
   @Override
@@ -996,12 +896,6 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
   public List<FieldSchema> getSchema(String db, String tableName) throws MetaException, TException, UnknownTableException,
         UnknownDBException {
     return glueMetastoreClientDelegate.getSchema(db, tableName);    
-  }
-
-  @Deprecated
-  public org.apache.hadoop.hive.metastore.api.Table getTable(String tableName) throws MetaException, TException, NoSuchObjectException {
-      //this has been deprecated
-      return getTable(DEFAULT_DATABASE_NAME, tableName);
   }
 
   @Override
@@ -1088,16 +982,13 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
   }
 
   @Override
-  public boolean isCompatibleWith(HiveConf conf) {
-    // Make a copy of currentMetaVars, there is a race condition that
-    // currentMetaVars might be changed during the execution of the method
+  public boolean isCompatibleWith(Configuration conf) {
     Map<String, String> currentMetaVarsCopy = currentMetaVars;
     if (currentMetaVarsCopy == null) {
           return false; // recreate
       }
       boolean compatible = true;
       for (ConfVars oneVar : HiveConf.metaVars) {
-          // Since metaVars are all of different types, use string for comparison
           String oldVar = currentMetaVarsCopy.get(oneVar.varname);
           String newVar = conf.get(oneVar.varname, "");
           if (oldVar == null ||
@@ -1135,23 +1026,11 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
   }
 
   @Override
-  public List<String> listIndexNames(String db_name, String tbl_name, short max) throws MetaException, TException {
-    throw new UnsupportedOperationException("listIndexNames is not supported");
-  }
-
-  @Override
-  public List<Index> listIndexes(String db_name, String tbl_name, short max) throws NoSuchObjectException, MetaException,
-        TException {
-    throw new UnsupportedOperationException("listIndexes is not supported");
-  }
-
-  @Override
   public List<String> listPartitionNames(String dbName, String tblName, short max)
         throws MetaException, TException {
       try {
-          return listPartitionNames(dbName, tblName, null, max);
+          return listPartitionNames(dbName, tblName, (List<String>) null, max);
       } catch (NoSuchObjectException e) {
-          // For compatibility with Hive 1.0.0
           return Collections.emptyList();
       }
   }
@@ -1189,7 +1068,7 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
   public List<org.apache.hadoop.hive.metastore.api.Partition> listPartitions(
         String dbName, String tblName, short max)
         throws NoSuchObjectException, MetaException, TException {
-      return listPartitions(dbName, tblName, null, max);
+      return listPartitions(dbName, tblName, (List<String>) null, max);
   }
 
   @Override
@@ -1233,8 +1112,6 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
       String filter,
       short max
   ) throws MetaException, NoSuchObjectException, TException {
-    // we need to replace double quotes with single quotes in the filter expression
-    // since server side does not accept double quote expressions.
     if (StringUtils.isNotBlank(filter)) {
         filter = ExpressionHelper.replaceDoubleQuoteWithSingleQuotes(filter);
     }
@@ -1287,7 +1164,7 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
   }
 
   @Override
-  public List<String> listTableNamesByFilter(String dbName, String filter, short maxTables) throws MetaException,
+  public List<String> listTableNamesByFilter(String dbName, String filter, short maxTables) throws
         TException, InvalidOperationException, UnknownDBException {
     return glueMetastoreClientDelegate.listTableNamesByFilter(dbName, filter, maxTables);
   }
@@ -1329,7 +1206,6 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
 
   @Override
   public Map<String, String> partitionNameToSpec(String name) throws MetaException, TException {
-      // Lifted from HiveMetaStore
       if (name.length() == 0) {
           return new HashMap<String, String>();
       }
@@ -1343,7 +1219,6 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
 
   @Override
   public void reconnect() throws MetaException {
-      // TODO reset active Hive confs for metastore glueClient
       logger.debug("reconnect() was called.");
   }
 
@@ -1352,7 +1227,6 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
                               org.apache.hadoop.hive.metastore.api.Partition newPartition)
         throws InvalidOperationException, MetaException, TException {
 
-      // Set DDL time to now if not specified
       setDDLTime(newPartition);
       org.apache.hadoop.hive.metastore.api.Table tbl;
       org.apache.hadoop.hive.metastore.api.Partition oldPart;
@@ -1368,7 +1242,6 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
           throw new InvalidOperationException("Storage descriptor cannot be null");
       }
 
-      // if an external partition is renamed, the location should not change
       if (!Strings.isNullOrEmpty(tbl.getTableType()) && tbl.getTableType().equals(TableType.EXTERNAL_TABLE.toString())) {
           newPartition.getSd().setLocation(oldPart.getSd().getLocation());
           renamePartitionInCatalog(dbName, tblName, partitionValues, newPartition);
@@ -1386,7 +1259,6 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
           boolean success = true;
           try{
               if (srcFs.exists(srcPath)) {
-                  //if destPath's parent path doesn't exist, we should mkdir it
                   Path destParentPath = destPath.getParent();
                   if (!hiveShims.mkdirs(wh, destParentPath)) {
                       throw new IOException("Unable to create path " + destParentPath);
@@ -1400,7 +1272,6 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
                     + tbl.getTableName() + " " + partitionValues);
           } finally {
               if(!success) {
-                  // revert metastore operation
                   renamePartitionInCatalog(dbName, tblName, newPartition.getValues(), oldPart);
               }
           }
@@ -1412,14 +1283,13 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
       String oldPartLoc = srcPath.toString();
       String newPartLoc = destPath.toString();
 
-      // check that src and dest are on the same file system
       if (!FileUtils.equalsFileSystem(srcFs, destFs)) {
           throw new InvalidOperationException("table new location " + destPath
                 + " is on a different file system than the old location "
                 + srcPath + ". This operation is not supported");
       }
       try {
-          srcFs.exists(srcPath); // check that src exists and also checks
+          srcFs.exists(srcPath);
           if (newPartLoc.compareTo(oldPartLoc) != 0 && destFs.exists(destPath)) {
               throw new InvalidOperationException("New location for this partition "
                     + tbl.getDbName() + "." + tbl.getTableName() + "." + newPartition.getValues()
@@ -1520,9 +1390,8 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
   }
 
   @Override
-  public boolean isSameConfObj(HiveConf hiveConf) {
-    //taken from HiveMetaStoreClient
-    return this.conf == hiveConf;
+  public boolean isSameConfObj(Configuration conf) {
+    return this.conf == conf;
   }
 
   @Override
@@ -1532,14 +1401,11 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
 
   @Override
   public List<SQLPrimaryKey> getPrimaryKeys(PrimaryKeysRequest primaryKeysRequest) throws TException {
-    // PrimaryKeys are currently unsupported
     return Lists.newArrayList();
   }
 
   @Override
   public List<SQLForeignKey> getForeignKeys(ForeignKeysRequest foreignKeysRequest) throws TException {
-    // PrimaryKeys are currently unsupported
-    // return empty list to not break DESCRIBE (FORMATTED | EXTENDED)
     return Lists.newArrayList();
   }
 
@@ -1547,7 +1413,11 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
   public void createTableWithConstraints(
       org.apache.hadoop.hive.metastore.api.Table table,
       List<SQLPrimaryKey> primaryKeys,
-      List<SQLForeignKey> foreignKeys
+      List<SQLForeignKey> foreignKeys,
+      List<SQLUniqueConstraint> uniqueConstraints,
+      List<SQLNotNullConstraint> notNullConstraints,
+      List<SQLDefaultConstraint> defaultConstraints,
+      List<SQLCheckConstraint> checkConstraints
   ) throws AlreadyExistsException, InvalidObjectException, MetaException, NoSuchObjectException, TException {
     glueMetastoreClientDelegate.createTableWithConstraints(table, primaryKeys, foreignKeys);
   }
@@ -1581,6 +1451,7 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
   @Override
   public void addDynamicPartitions(
       long txnId,
+      long writeId,
       String dbName,
       String tblName,
       List<String> partNames
@@ -1591,6 +1462,7 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
   @Override
   public void addDynamicPartitions(
       long txnId,
+      long writeId,
       String dbName,
       String tblName,
       List<String> partNames,
@@ -1633,12 +1505,6 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
   @Override
   public GetOpenTxnsInfoResponse showTxns() throws TException {
     return glueMetastoreClientDelegate.showTxns();
-  }
-
-  @Deprecated
-  public boolean tableExists(String tableName) throws MetaException, TException, UnknownDBException {
-      //this method has been deprecated;
-      return tableExists(DEFAULT_DATABASE_NAME, tableName);
   }
 
   @Override
@@ -1687,6 +1553,631 @@ public class AWSCatalogMetastoreClient implements IMetaStoreClient {
 
       return new Path(currentUri.getScheme(), currentUri.getAuthority(),
             defaultNewPath.toUri().getPath());
+  }
+
+  // ========================
+  // New Hive 3.1.3 methods
+  // ========================
+
+  @Override
+  public void createCatalog(Catalog catalog) throws org.apache.hadoop.hive.metastore.api.AlreadyExistsException, InvalidObjectException, MetaException, TException {
+    glueMetastoreClientDelegate.createCatalog(catalog);
+  }
+
+  @Override
+  public void alterCatalog(String s, Catalog catalog) throws NoSuchObjectException, InvalidObjectException, MetaException, TException {
+    glueMetastoreClientDelegate.alterCatalog(s, catalog);
+  }
+
+  @Override
+  public Catalog getCatalog(String s) throws NoSuchObjectException, MetaException, TException {
+    return glueMetastoreClientDelegate.getCatalog(s);
+  }
+
+  @Override
+  public List<String> getCatalogs() throws MetaException, TException {
+    return glueMetastoreClientDelegate.getCatalogs();
+  }
+
+  @Override
+  public void dropCatalog(String s) throws NoSuchObjectException, InvalidOperationException, MetaException, TException {
+    glueMetastoreClientDelegate.dropCatalog(s);
+  }
+
+  @Override
+  public Database getDatabase(String catalogName, String dbName) throws NoSuchObjectException, MetaException, TException {
+    return glueMetastoreClientDelegate.getDatabase(dbName);
+  }
+
+  @Override
+  public List<String> getDatabases(String catalogName, String dbPattern) throws MetaException, TException {
+    return glueMetastoreClientDelegate.getDatabases(dbPattern);
+  }
+
+  @Override
+  public List<String> getAllDatabases(String catalogName) throws MetaException, TException {
+    return getDatabases(".*");
+  }
+
+  @Override
+  public void alterDatabase(String catalogName, String databaseName, Database database) throws NoSuchObjectException, MetaException, TException {
+    glueMetastoreClientDelegate.alterDatabase(databaseName, database);
+  }
+
+  @Override
+  public void dropDatabase(String catalogName, String dbName, boolean deleteData, boolean ignoreUnknownDb, boolean cascade) throws NoSuchObjectException, InvalidOperationException, MetaException, TException {
+    glueMetastoreClientDelegate.dropDatabase(dbName, deleteData, ignoreUnknownDb, cascade);
+  }
+
+  @Override
+  public void dropTable(String catName, String dbName, String tableName, boolean deleteData, boolean ignoreUnknownTable, boolean ifPurge) throws MetaException, NoSuchObjectException, TException {
+    glueMetastoreClientDelegate.dropTable(dbName, tableName, deleteData, ignoreUnknownTable, ifPurge);
+  }
+
+  @Override
+  public void truncateTable(String dbName, String tableName, List<String> partNames) throws MetaException, TException {
+    throw new UnsupportedOperationException("truncateTable is not supported");
+  }
+
+  @Override
+  public void truncateTable(String catalogName, String dbName, String tableName, List<String> partNames) throws MetaException, TException {
+    throw new UnsupportedOperationException("truncateTable is not supported");
+  }
+
+  @Override
+  public CmRecycleResponse recycleDirToCmPath(CmRecycleRequest cmRecycleRequest) throws MetaException, TException {
+    throw new UnsupportedOperationException("recycleDirToCmPath is not supported");
+  }
+
+  @Override
+  public boolean tableExists(String catalogName, String databaseName, String tableName) throws MetaException, TException, UnknownDBException {
+    return glueMetastoreClientDelegate.tableExists(databaseName, tableName);
+  }
+
+  @Override
+  public Table getTable(String catalogName, String dbName, String tableName) throws MetaException, TException {
+    return glueMetastoreClientDelegate.getTable(dbName, tableName);
+  }
+
+  @Override
+  public List<String> getTables(String catalogName, String dbname, String tablePattern) throws MetaException, TException, UnknownDBException {
+    return glueMetastoreClientDelegate.getTables(dbname, tablePattern);
+  }
+
+  @Override
+  public List<String> getTables(String catalogName, String dbname, String tablePattern, TableType tableType) throws MetaException, TException, UnknownDBException {
+    return glueMetastoreClientDelegate.getTables(dbname, tablePattern, tableType);
+  }
+
+  @Override
+  public List<String> getAllTables(String catalogName, String dbname) throws MetaException, TException, UnknownDBException {
+    return getTables(dbname, ".*");
+  }
+
+  @Override
+  public List<TableMeta> getTableMeta(String catalogName, String dbPatterns, String tablePatterns, List<String> tableTypes) throws MetaException, TException, UnknownDBException {
+    return glueMetastoreClientDelegate.getTableMeta(dbPatterns, tablePatterns, tableTypes);
+  }
+
+  @Override
+  public List<Table> getTableObjectsByName(String catalogName, String dbName, List<String> tableNames) throws MetaException, InvalidOperationException, UnknownDBException, TException {
+    List<Table> hiveTables = Lists.newArrayList();
+    for (String tableName : tableNames) {
+      hiveTables.add(glueMetastoreClientDelegate.getTable(dbName, tableName));
+    }
+    return hiveTables;
+  }
+
+  @Override
+  public List<String> listTableNamesByFilter(String catalogName, String dbName, String filter, int maxTables) throws TException, InvalidOperationException, UnknownDBException {
+    return glueMetastoreClientDelegate.listTableNamesByFilter(dbName, filter, (short) maxTables);
+  }
+
+  @Override
+  public List<String> getMaterializedViewsForRewriting(String dbName) throws MetaException, TException, UnknownDBException {
+    return Lists.newArrayList();
+  }
+
+  @Override
+  public List<String> getMaterializedViewsForRewriting(String catalogName, String dbName) throws MetaException, TException, UnknownDBException {
+    return Lists.newArrayList();
+  }
+
+  @Override
+  public Materialization getMaterializationInvalidationInfo(CreationMetadata creationMetadata, String validTxnList) throws MetaException, InvalidOperationException, UnknownDBException, TException {
+    throw new UnsupportedOperationException("getMaterializationInvalidationInfo is not supported");
+  }
+
+  @Override
+  public void updateCreationMetadata(String dbName, String tableName, CreationMetadata cm) throws MetaException, TException {
+    throw new UnsupportedOperationException("updateCreationMetadata is not supported");
+  }
+
+  @Override
+  public void updateCreationMetadata(String catName, String dbName, String tableName, CreationMetadata cm) throws MetaException, TException {
+    throw new UnsupportedOperationException("updateCreationMetadata is not supported");
+  }
+
+  @Override
+  public org.apache.hadoop.hive.metastore.api.Partition appendPartition(String catalogName, String dbName, String tblName, List<String> values) throws InvalidObjectException, org.apache.hadoop.hive.metastore.api.AlreadyExistsException, MetaException, TException {
+    return glueMetastoreClientDelegate.appendPartition(dbName, tblName, values);
+  }
+
+  @Override
+  public org.apache.hadoop.hive.metastore.api.Partition appendPartition(String catalogName, String dbName, String tblName, String partitionName) throws InvalidObjectException, org.apache.hadoop.hive.metastore.api.AlreadyExistsException, MetaException, TException {
+    List<String> partVals = partitionNameToVals(partitionName);
+    return glueMetastoreClientDelegate.appendPartition(dbName, tblName, partVals);
+  }
+
+  @Override
+  public org.apache.hadoop.hive.metastore.api.Partition getPartition(String catalogName, String dbName, String tblName, List<String> values) throws NoSuchObjectException, MetaException, TException {
+    return glueMetastoreClientDelegate.getPartition(dbName, tblName, values);
+  }
+
+  @Override
+  public org.apache.hadoop.hive.metastore.api.Partition getPartition(String catalogName, String dbName, String tblName, String partitionName) throws MetaException, UnknownTableException, NoSuchObjectException, TException {
+    return glueMetastoreClientDelegate.getPartition(dbName, tblName, partitionName);
+  }
+
+  @Override
+  public org.apache.hadoop.hive.metastore.api.Partition getPartitionWithAuthInfo(String catalogName, String databaseName, String tableName, List<String> values, String userName, List<String> groupNames) throws MetaException, UnknownTableException, NoSuchObjectException, TException {
+    return getPartitionWithAuthInfo(databaseName, tableName, values, userName, groupNames);
+  }
+
+  @Override
+  public List<org.apache.hadoop.hive.metastore.api.Partition> getPartitionsByNames(String catalogName, String databaseName, String tableName, List<String> partitionNames) throws NoSuchObjectException, MetaException, TException {
+    return glueMetastoreClientDelegate.getPartitionsByNames(databaseName, tableName, partitionNames);
+  }
+
+  @Override
+  public boolean dropPartition(String catalogName, String dbName, String tblName, List<String> values, boolean deleteData) throws NoSuchObjectException, MetaException, TException {
+    return glueMetastoreClientDelegate.dropPartition(dbName, tblName, values, false, deleteData, false);
+  }
+
+  @Override
+  public boolean dropPartition(String catalogName, String dbName, String tblName, List<String> values, PartitionDropOptions options) throws NoSuchObjectException, MetaException, TException {
+    return glueMetastoreClientDelegate.dropPartition(dbName, tblName, values, options.ifExists, options.deleteData, options.purgeData);
+  }
+
+  @Override
+  public boolean dropPartition(String catalogName, String dbName, String tblName, String partitionName, boolean deleteData) throws NoSuchObjectException, MetaException, TException {
+    List<String> values = partitionNameToVals(partitionName);
+    return glueMetastoreClientDelegate.dropPartition(dbName, tblName, values, false, deleteData, false);
+  }
+
+  @Override
+  public List<org.apache.hadoop.hive.metastore.api.Partition> dropPartitions(String catalogName, String dbName, String tblName, List<ObjectPair<Integer, byte[]>> partExprs, PartitionDropOptions options) throws NoSuchObjectException, MetaException, TException {
+    return dropPartitions_core(dbName, tblName, partExprs, options.deleteData, options.purgeData);
+  }
+
+  @Override
+  public List<org.apache.hadoop.hive.metastore.api.Partition> listPartitions(String catalogName, String dbName, String tblName, int max) throws NoSuchObjectException, MetaException, TException {
+    return listPartitions(dbName, tblName, (short) max);
+  }
+
+  @Override
+  public List<org.apache.hadoop.hive.metastore.api.Partition> listPartitions(String catalogName, String databaseName, String tableName, List<String> values, int max) throws NoSuchObjectException, MetaException, TException {
+    return listPartitions(databaseName, tableName, values, (short) max);
+  }
+
+  @Override
+  public List<String> listPartitionNames(String catalogName, String dbName, String tblName, int maxParts) throws NoSuchObjectException, MetaException, TException {
+    return listPartitionNames(dbName, tblName, (short) maxParts);
+  }
+
+  @Override
+  public List<String> listPartitionNames(String catalogName, String databaseName, String tableName, List<String> values, int max) throws MetaException, TException, NoSuchObjectException {
+    return listPartitionNames(databaseName, tableName, values, (short) max);
+  }
+
+  @Override
+  public PartitionSpecProxy listPartitionSpecs(String catalogName, String dbName, String tblName, int max) throws TException {
+    return glueMetastoreClientDelegate.listPartitionSpecs(dbName, tblName, max);
+  }
+
+  @Override
+  public PartitionSpecProxy listPartitionSpecsByFilter(String catalogName, String dbName, String tblName, String filter, int max) throws MetaException, NoSuchObjectException, TException {
+    return glueMetastoreClientDelegate.listPartitionSpecsByFilter(dbName, tblName, filter, max);
+  }
+
+  @Override
+  public List<org.apache.hadoop.hive.metastore.api.Partition> listPartitionsByFilter(String catalogName, String databaseName, String tableName, String filter, int max) throws MetaException, NoSuchObjectException, TException {
+    return listPartitionsByFilter(databaseName, tableName, filter, (short) max);
+  }
+
+  @Override
+  public boolean listPartitionsByExpr(String catalogName, String databaseName, String tableName, byte[] expr, String defaultPartitionName, int max, List<org.apache.hadoop.hive.metastore.api.Partition> result) throws TException {
+    return listPartitionsByExpr(databaseName, tableName, expr, defaultPartitionName, (short) max, result);
+  }
+
+  @Override
+  public List<org.apache.hadoop.hive.metastore.api.Partition> listPartitionsWithAuthInfo(String catalogName, String database, String table, int maxParts, String user, List<String> groups) throws MetaException, TException, NoSuchObjectException {
+    return listPartitionsWithAuthInfo(database, table, (short) maxParts, user, groups);
+  }
+
+  @Override
+  public List<org.apache.hadoop.hive.metastore.api.Partition> listPartitionsWithAuthInfo(String catalogName, String database, String table, List<String> partVals, int maxParts, String user, List<String> groups) throws MetaException, TException, NoSuchObjectException {
+    return listPartitionsWithAuthInfo(database, table, partVals, (short) maxParts, user, groups);
+  }
+
+  @Override
+  public int getNumPartitionsByFilter(String catalogName, String dbName, String tableName, String filter) throws MetaException, NoSuchObjectException, TException {
+    return glueMetastoreClientDelegate.getNumPartitionsByFilter(dbName, tableName, filter);
+  }
+
+  @Override
+  public void alter_partition(String catalogName, String dbName, String tblName, org.apache.hadoop.hive.metastore.api.Partition partition, EnvironmentContext environmentContext) throws InvalidOperationException, MetaException, TException {
+    glueMetastoreClientDelegate.alterPartitions(dbName, tblName, Lists.newArrayList(partition));
+  }
+
+  @Override
+  public void alter_partitions(String catalogName, String dbName, String tblName, List<org.apache.hadoop.hive.metastore.api.Partition> partitions, EnvironmentContext environmentContext) throws InvalidOperationException, MetaException, TException {
+    glueMetastoreClientDelegate.alterPartitions(dbName, tblName, partitions);
+  }
+
+  @Override
+  public void alter_table(String catalogName, String dbName, String tblName, Table table, EnvironmentContext environmentContext) throws InvalidOperationException, MetaException, TException {
+    glueMetastoreClientDelegate.alterTable(dbName, tblName, table, environmentContext);
+  }
+
+  @Override
+  public void renamePartition(String catalogName, String dbName, String tblName, List<String> partitionValues, org.apache.hadoop.hive.metastore.api.Partition newPartition) throws InvalidOperationException, MetaException, TException {
+    renamePartition(dbName, tblName, partitionValues, newPartition);
+  }
+
+  @Override
+  public void markPartitionForEvent(String catalogName, String dbName, String tblName, Map<String, String> partKVs, PartitionEventType eventType) throws MetaException, NoSuchObjectException, TException, UnknownTableException, UnknownDBException, UnknownPartitionException, InvalidPartitionException {
+    glueMetastoreClientDelegate.markPartitionForEvent(dbName, tblName, partKVs, eventType);
+  }
+
+  @Override
+  public boolean isPartitionMarkedForEvent(String catalogName, String dbName, String tblName, Map<String, String> partKVs, PartitionEventType eventType) throws MetaException, NoSuchObjectException, TException, UnknownTableException, UnknownDBException, UnknownPartitionException, InvalidPartitionException {
+    return glueMetastoreClientDelegate.isPartitionMarkedForEvent(dbName, tblName, partKVs, eventType);
+  }
+
+  @Override
+  public org.apache.hadoop.hive.metastore.api.Partition exchange_partition(Map<String, String> partitionSpecs, String sourceCat, String sourceDb, String sourceTable, String destCat, String destdb, String destTableName) throws MetaException, NoSuchObjectException, InvalidObjectException, TException {
+    return glueMetastoreClientDelegate.exchangePartition(partitionSpecs, sourceDb, sourceTable, destdb, destTableName);
+  }
+
+  @Override
+  public List<org.apache.hadoop.hive.metastore.api.Partition> exchange_partitions(Map<String, String> partitionSpecs, String sourceCat, String sourceDb, String sourceTbl, String destCat, String destDb, String destTbl) throws MetaException, NoSuchObjectException, InvalidObjectException, TException {
+    return glueMetastoreClientDelegate.exchangePartitions(partitionSpecs, sourceDb, sourceTbl, destDb, destTbl);
+  }
+
+  @Override
+  public ValidWriteIdList getValidWriteIds(String fullTableName) throws TException {
+    throw new UnsupportedOperationException("getValidWriteIds is not supported");
+  }
+
+  @Override
+  public List<TableValidWriteIds> getValidWriteIds(List<String> tablesList, String validTxnList) throws TException {
+    throw new UnsupportedOperationException("getValidWriteIds is not supported");
+  }
+
+  @Override
+  public List<Long> replOpenTxn(String replPolicy, List<Long> srcTxnIds, String user) throws TException {
+    throw new UnsupportedOperationException("replOpenTxn is not supported");
+  }
+
+  @Override
+  public void replRollbackTxn(long l, String s) throws NoSuchTxnException, TException {
+    throw new UnsupportedOperationException("replRollbackTxn is not supported");
+  }
+
+  @Override
+  public void replCommitTxn(long srcTxnid, String replPolicy) throws NoSuchTxnException, TxnAbortedException, TException {
+    throw new UnsupportedOperationException("replCommitTxn is not supported");
+  }
+
+  @Override
+  public long allocateTableWriteId(long txnId, String dbName, String tableName) throws TException {
+    throw new UnsupportedOperationException("allocateTableWriteId is not supported");
+  }
+
+  @Override
+  public void replTableWriteIdState(String validWriteIdList, String dbName, String tableName, List<String> partNames) throws TException {
+    throw new UnsupportedOperationException("replTableWriteIdState is not supported");
+  }
+
+  @Override
+  public List<TxnToWriteId> allocateTableWriteIdsBatch(List<Long> txnIds, String dbName, String tableName) throws TException {
+    throw new UnsupportedOperationException("allocateTableWriteIdsBatch is not supported");
+  }
+
+  @Override
+  public List<TxnToWriteId> replAllocateTableWriteIdsBatch(String dbName, String tableName, String replPolicy, List<TxnToWriteId> srcTxnToWriteIdList) throws TException {
+    throw new UnsupportedOperationException("replAllocateTableWriteIdsBatch is not supported");
+  }
+
+  @Override
+  public NotificationEventsCountResponse getNotificationEventsCount(NotificationEventsCountRequest notificationEventsCountRequest) throws TException {
+    throw new UnsupportedOperationException("getNotificationEventsCount is not supported");
+  }
+
+  @Override
+  public boolean refresh_privileges(HiveObjectRef hiveObjectRef, String s, PrivilegeBag privilegeBag) throws MetaException, TException {
+    throw new UnsupportedOperationException("refresh_privileges is not supported");
+  }
+
+  @Override
+  public List<SQLUniqueConstraint> getUniqueConstraints(UniqueConstraintsRequest uniqueConstraintsRequest) throws MetaException, NoSuchObjectException, TException {
+    return Lists.newArrayList();
+  }
+
+  @Override
+  public List<SQLNotNullConstraint> getNotNullConstraints(NotNullConstraintsRequest notNullConstraintsRequest) throws MetaException, NoSuchObjectException, TException {
+    return Lists.newArrayList();
+  }
+
+  @Override
+  public List<SQLDefaultConstraint> getDefaultConstraints(DefaultConstraintsRequest defaultConstraintsRequest) throws MetaException, NoSuchObjectException, TException {
+    return Lists.newArrayList();
+  }
+
+  @Override
+  public List<SQLCheckConstraint> getCheckConstraints(CheckConstraintsRequest checkConstraintsRequest) throws MetaException, NoSuchObjectException, TException {
+    return Lists.newArrayList();
+  }
+
+  @Override
+  public void addUniqueConstraint(List<SQLUniqueConstraint> uniqueConstraintCols) throws MetaException, NoSuchObjectException, TException {
+    throw new UnsupportedOperationException("addUniqueConstraint is not supported");
+  }
+
+  @Override
+  public void addNotNullConstraint(List<SQLNotNullConstraint> notNullConstraintCols) throws MetaException, NoSuchObjectException, TException {
+    throw new UnsupportedOperationException("addNotNullConstraint is not supported");
+  }
+
+  @Override
+  public void addDefaultConstraint(List<SQLDefaultConstraint> defaultConstraints) throws MetaException, NoSuchObjectException, TException {
+    throw new UnsupportedOperationException("addDefaultConstraint is not supported");
+  }
+
+  @Override
+  public void addCheckConstraint(List<SQLCheckConstraint> checkConstraints) throws MetaException, NoSuchObjectException, TException {
+    throw new UnsupportedOperationException("addCheckConstraint is not supported");
+  }
+
+  @Override
+  public void dropConstraint(String catalogName, String dbName, String tblName, String constraintName) throws MetaException, NoSuchObjectException, TException {
+    glueMetastoreClientDelegate.dropConstraint(dbName, tblName, constraintName);
+  }
+
+  @Override
+  public String getMetastoreDbUuid() throws MetaException, TException {
+    throw new UnsupportedOperationException("getMetastoreDbUuid is not supported");
+  }
+
+  @Override
+  public void createResourcePlan(WMResourcePlan resourcePlan, String copyFromName) throws InvalidObjectException, MetaException, TException {
+    throw new UnsupportedOperationException("createResourcePlan is not supported");
+  }
+
+  @Override
+  public WMFullResourcePlan getResourcePlan(String resourcePlanName) throws NoSuchObjectException, MetaException, TException {
+    throw new UnsupportedOperationException("getResourcePlan is not supported");
+  }
+
+  @Override
+  public List<WMResourcePlan> getAllResourcePlans() throws NoSuchObjectException, MetaException, TException {
+    throw new UnsupportedOperationException("getAllResourcePlans is not supported");
+  }
+
+  @Override
+  public void dropResourcePlan(String resourcePlanName) throws NoSuchObjectException, MetaException, TException {
+    throw new UnsupportedOperationException("dropResourcePlan is not supported");
+  }
+
+  @Override
+  public WMFullResourcePlan alterResourcePlan(String resourcePlanName, WMNullableResourcePlan wmNullableResourcePlan, boolean canActivateDisabled, boolean isForceDeactivate, boolean isReplace) throws NoSuchObjectException, InvalidObjectException, MetaException, TException {
+    throw new UnsupportedOperationException("alterResourcePlan is not supported");
+  }
+
+  @Override
+  public WMFullResourcePlan getActiveResourcePlan() throws MetaException, TException {
+    throw new UnsupportedOperationException("getActiveResourcePlan is not supported");
+  }
+
+  @Override
+  public WMValidateResourcePlanResponse validateResourcePlan(String resourcePlanName) throws NoSuchObjectException, InvalidObjectException, MetaException, TException {
+    throw new UnsupportedOperationException("validateResourcePlan is not supported");
+  }
+
+  @Override
+  public void createWMTrigger(WMTrigger wmTrigger) throws InvalidObjectException, MetaException, TException {
+    throw new UnsupportedOperationException("createWMTrigger is not supported");
+  }
+
+  @Override
+  public void alterWMTrigger(WMTrigger wmTrigger) throws NoSuchObjectException, InvalidObjectException, MetaException, TException {
+    throw new UnsupportedOperationException("alterWMTrigger is not supported");
+  }
+
+  @Override
+  public void dropWMTrigger(String resourcePlanName, String triggerName) throws NoSuchObjectException, MetaException, TException {
+    throw new UnsupportedOperationException("dropWMTrigger is not supported");
+  }
+
+  @Override
+  public List<WMTrigger> getTriggersForResourcePlan(String resourcePlan) throws NoSuchObjectException, MetaException, TException {
+    throw new UnsupportedOperationException("getTriggersForResourcePlan is not supported");
+  }
+
+  @Override
+  public void createWMPool(WMPool wmPool) throws NoSuchObjectException, InvalidObjectException, MetaException, TException {
+    throw new UnsupportedOperationException("createWMPool is not supported");
+  }
+
+  @Override
+  public void alterWMPool(WMNullablePool wmNullablePool, String poolPath) throws NoSuchObjectException, InvalidObjectException, TException {
+    throw new UnsupportedOperationException("alterWMPool is not supported");
+  }
+
+  @Override
+  public void dropWMPool(String resourcePlanName, String poolPath) throws TException {
+    throw new UnsupportedOperationException("dropWMPool is not supported");
+  }
+
+  @Override
+  public void createOrUpdateWMMapping(WMMapping wmMapping, boolean isUpdate) throws TException {
+    throw new UnsupportedOperationException("createOrUpdateWMMapping is not supported");
+  }
+
+  @Override
+  public void dropWMMapping(WMMapping wmMapping) throws TException {
+    throw new UnsupportedOperationException("dropWMMapping is not supported");
+  }
+
+  @Override
+  public void createOrDropTriggerToPoolMapping(String resourcePlanName, String triggerName, String poolPath, boolean shouldDrop) throws org.apache.hadoop.hive.metastore.api.AlreadyExistsException, NoSuchObjectException, InvalidObjectException, MetaException, TException {
+    throw new UnsupportedOperationException("createOrDropTriggerToPoolMapping is not supported");
+  }
+
+  @Override
+  public void createISchema(ISchema iSchema) throws TException {
+    throw new UnsupportedOperationException("createISchema is not supported");
+  }
+
+  @Override
+  public void alterISchema(String catName, String dbName, String schemaName, ISchema newSchema) throws TException {
+    throw new UnsupportedOperationException("alterISchema is not supported");
+  }
+
+  @Override
+  public ISchema getISchema(String catName, String dbName, String name) throws TException {
+    throw new UnsupportedOperationException("getISchema is not supported");
+  }
+
+  @Override
+  public void dropISchema(String catName, String dbName, String name) throws TException {
+    throw new UnsupportedOperationException("dropISchema is not supported");
+  }
+
+  @Override
+  public void addSchemaVersion(SchemaVersion schemaVersion) throws TException {
+    throw new UnsupportedOperationException("addSchemaVersion is not supported");
+  }
+
+  @Override
+  public SchemaVersion getSchemaVersion(String catName, String dbName, String schemaName, int version) throws TException {
+    throw new UnsupportedOperationException("getSchemaVersion is not supported");
+  }
+
+  @Override
+  public SchemaVersion getSchemaLatestVersion(String catName, String dbName, String schemaName) throws TException {
+    throw new UnsupportedOperationException("getSchemaLatestVersion is not supported");
+  }
+
+  @Override
+  public List<SchemaVersion> getSchemaAllVersions(String catName, String dbName, String schemaName) throws TException {
+    throw new UnsupportedOperationException("getSchemaAllVersions is not supported");
+  }
+
+  @Override
+  public void dropSchemaVersion(String catName, String dbName, String schemaName, int version) throws TException {
+    throw new UnsupportedOperationException("dropSchemaVersion is not supported");
+  }
+
+  @Override
+  public FindSchemasByColsResp getSchemaByCols(FindSchemasByColsRqst findSchemasByColsRqst) throws TException {
+    throw new UnsupportedOperationException("getSchemaByCols is not supported");
+  }
+
+  @Override
+  public void mapSchemaVersionToSerde(String catName, String dbName, String schemaName, int version, String serdeName) throws TException {
+    throw new UnsupportedOperationException("mapSchemaVersionToSerde is not supported");
+  }
+
+  @Override
+  public void setSchemaVersionState(String catName, String dbName, String schemaName, int version, SchemaVersionState state) throws TException {
+    throw new UnsupportedOperationException("setSchemaVersionState is not supported");
+  }
+
+  @Override
+  public void addSerDe(SerDeInfo serDeInfo) throws TException {
+    throw new UnsupportedOperationException("addSerDe is not supported");
+  }
+
+  @Override
+  public SerDeInfo getSerDe(String serDeName) throws TException {
+    throw new UnsupportedOperationException("getSerDe is not supported");
+  }
+
+  @Override
+  public LockResponse lockMaterializationRebuild(String dbName, String tableName, long txnId) throws TException {
+    throw new UnsupportedOperationException("lockMaterializationRebuild is not supported");
+  }
+
+  @Override
+  public boolean heartbeatLockMaterializationRebuild(String dbName, String tableName, long txnId) throws TException {
+    throw new UnsupportedOperationException("heartbeatLockMaterializationRebuild is not supported");
+  }
+
+  @Override
+  public void addRuntimeStat(RuntimeStat runtimeStat) throws TException {
+    throw new UnsupportedOperationException("addRuntimeStat is not supported");
+  }
+
+  @Override
+  public List<RuntimeStat> getRuntimeStats(int maxWeight, int maxCreateTime) throws TException {
+    throw new UnsupportedOperationException("getRuntimeStats is not supported");
+  }
+
+  @Override
+  public List<FieldSchema> getFields(String catalogName, String db, String tableName) throws MetaException, TException, UnknownTableException, UnknownDBException {
+    return glueMetastoreClientDelegate.getFields(db, tableName);
+  }
+
+  @Override
+  public List<FieldSchema> getSchema(String catalogName, String db, String tableName) throws MetaException, TException, UnknownTableException, UnknownDBException {
+    return glueMetastoreClientDelegate.getSchema(db, tableName);
+  }
+
+  @Override
+  public void alterFunction(String catalogName, String dbName, String functionName, Function newFunction) throws InvalidObjectException, MetaException, TException {
+    glueMetastoreClientDelegate.alterFunction(dbName, functionName, newFunction);
+  }
+
+  @Override
+  public void dropFunction(String catalogName, String dbName, String functionName) throws MetaException, NoSuchObjectException, InvalidObjectException, InvalidInputException, TException {
+    glueMetastoreClientDelegate.dropFunction(dbName, functionName);
+  }
+
+  @Override
+  public Function getFunction(String catalogName, String dbName, String functionName) throws MetaException, TException {
+    return glueMetastoreClientDelegate.getFunction(dbName, functionName);
+  }
+
+  @Override
+  public List<String> getFunctions(String catalogName, String dbName, String pattern) throws MetaException, TException {
+    return glueMetastoreClientDelegate.getFunctions(dbName, pattern);
+  }
+
+  @Override
+  public List<ColumnStatisticsObj> getTableColumnStatistics(String catalogName, String dbName, String tableName, List<String> colNames) throws NoSuchObjectException, MetaException, TException {
+    return glueMetastoreClientDelegate.getTableColumnStatistics(dbName, tableName, colNames);
+  }
+
+  @Override
+  public Map<String, List<ColumnStatisticsObj>> getPartitionColumnStatistics(String catalogName, String dbName, String tableName, List<String> partitionNames, List<String> columnNames) throws NoSuchObjectException, MetaException, TException {
+    return glueMetastoreClientDelegate.getPartitionColumnStatistics(dbName, tableName, partitionNames, columnNames);
+  }
+
+  @Override
+  public boolean deletePartitionColumnStatistics(String catalogName, String dbName, String tableName, String partName, String colName) throws NoSuchObjectException, MetaException, InvalidObjectException, TException, InvalidInputException {
+    return glueMetastoreClientDelegate.deletePartitionColumnStatistics(dbName, tableName, partName, colName);
+  }
+
+  @Override
+  public boolean deleteTableColumnStatistics(String catalogName, String dbName, String tableName, String colName) throws NoSuchObjectException, MetaException, InvalidObjectException, TException, InvalidInputException {
+    return glueMetastoreClientDelegate.deleteTableColumnStatistics(dbName, tableName, colName);
+  }
+
+  @Override
+  public AggrStats getAggrColStatsFor(String catalogName, String dbName, String tblName, List<String> colNames, List<String> partName) throws NoSuchObjectException, MetaException, TException {
+    return glueMetastoreClientDelegate.getAggrColStatsFor(dbName, tblName, colNames, partName);
   }
 
 }

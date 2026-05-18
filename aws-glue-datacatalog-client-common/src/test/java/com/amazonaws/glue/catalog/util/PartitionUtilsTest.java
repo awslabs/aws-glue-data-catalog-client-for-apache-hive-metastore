@@ -1,11 +1,11 @@
 package com.amazonaws.glue.catalog.util;
 
-import com.amazonaws.services.glue.model.EntityNotFoundException;
-import com.amazonaws.services.glue.model.InternalServiceException;
-import com.amazonaws.services.glue.model.InvalidInputException;
-import com.amazonaws.services.glue.model.Partition;
-import com.amazonaws.services.glue.model.PartitionValueList;
-import com.amazonaws.services.glue.model.ResourceNumberLimitExceededException;
+import software.amazon.awssdk.services.glue.model.EntityNotFoundException;
+import software.amazon.awssdk.services.glue.model.InternalServiceException;
+import software.amazon.awssdk.services.glue.model.InvalidInputException;
+import software.amazon.awssdk.services.glue.model.Partition;
+import software.amazon.awssdk.services.glue.model.PartitionValueList;
+import software.amazon.awssdk.services.glue.model.ResourceNumberLimitExceededException;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;

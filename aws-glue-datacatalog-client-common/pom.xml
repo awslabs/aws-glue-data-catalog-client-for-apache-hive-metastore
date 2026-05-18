@@ -24,15 +24,39 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk-glue</artifactId>
-            <version>${aws.sdk.version}</version>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>glue</artifactId>
+            <version>${aws.sdkv2.version}</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk-core</artifactId>
-            <version>${aws.sdk.version}</version>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sdk-core</artifactId>
+            <version>${aws.sdkv2.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>aws-core</artifactId>
+            <version>${aws.sdkv2.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sts</artifactId>
+            <version>${aws.sdkv2.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>apache-client</artifactId>
+            <version>${aws.sdkv2.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>arns</artifactId>
+            <version>${aws.sdkv2.version}</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
