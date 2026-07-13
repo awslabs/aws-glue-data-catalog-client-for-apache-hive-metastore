@@ -103,4 +103,44 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- AWSGlueDataCatalogHiveClientFactory implements Hive's HiveMetaStoreClientFactory
+             (HIVE-12679), which is present in EMR/Spark-flavored Hive but NOT in released
+             Apache Hive, so it cannot compile against Apache Hive. It lives under src/emr/java
+             and is compiled only in the default/EMR profile. A plain Apache Hive build
+             (-Dapache.hive=true) omits it; Paimon and other callers load the client
+             (AWSCatalogMetastoreClient) directly via metastore.client.class, not the factory. -->
+        <profile>
+            <id>emr</id>
+            <activation>
+                <property>
+                    <name>!apache.hive</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>build-helper-maven-plugin</artifactId>
+                        <version>3.2.0</version>
+                        <executions>
+                            <execution>
+                                <id>add-emr-factory-source</id>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>add-source</goal>
+                                </goals>
+                                <configuration>
+                                    <sources>
+                                        <source>src/emr/java</source>
+                                    </sources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

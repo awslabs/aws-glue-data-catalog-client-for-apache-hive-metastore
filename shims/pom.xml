@@ -16,8 +16,24 @@
 
     <modules>
         <module>common</module>
-        <module>spark-hive-shims</module>
         <module>hive3-shims</module>
         <module>loader</module>
     </modules>
+
+    <profiles>
+        <!-- spark-hive-shims depends on a Spark-flavored Hive not on Maven Central; built only
+             in the default/EMR profile. A plain Apache Hive build (-Dapache.hive=true) omits it,
+             and ShimsLoader loads the Spark shim reflectively so the loader still builds. -->
+        <profile>
+            <id>emr</id>
+            <activation>
+                <property>
+                    <name>!apache.hive</name>
+                </property>
+            </activation>
+            <modules>
+                <module>spark-hive-shims</module>
+            </modules>
+        </profile>
+    </profiles>
 </project>

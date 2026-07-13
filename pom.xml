@@ -7,7 +7,6 @@
   <version>3.4.0-SNAPSHOT</version>
     <modules>
       <module>aws-glue-datacatalog-client-common</module>
-      <module>aws-glue-datacatalog-spark-client</module>
       <module>aws-glue-datacatalog-hive3-client</module>
       <module>shims</module>
     </modules>
@@ -130,5 +129,23 @@
       </plugin>
     </plugins>
   </reporting>
+
+  <profiles>
+    <!-- Default ("EMR") build: includes the Spark-on-Hive client, which depends on a
+         Spark-flavored Hive that is not published to Maven Central. This profile is active
+         unless -Dapache.hive is set, so a plain Apache Hive build (add -Dapache.hive=true)
+         omits the Spark module and builds the Hive client against released Apache Hive. -->
+    <profile>
+      <id>emr</id>
+      <activation>
+        <property>
+          <name>!apache.hive</name>
+        </property>
+      </activation>
+      <modules>
+        <module>aws-glue-datacatalog-spark-client</module>
+      </modules>
+    </profile>
+  </profiles>
 
 </project>
